@@ -1,0 +1,6 @@
+[
+  {"id": "mm_001", "domain": "multimodal_image", "input": "Describe this image of a cat.", "output": "The image shows a fluffy tabby cat sitting on a windowsill."},
+  {"id": "mm_002", "domain": "visual_reasoning", "input": "What is in the foreground?", "output": "In the foreground, there is a red ball."},
+  {"id": "mm_003", "domain": "audio_text", "input": "Transcribe the audio.", "output": "The audio contains spoken words: 'Hello world'."},
+  {"id": "mm_004", "domain": "multimodal_fusion", "input": "Combine text and image analysis.", "output": "The text describes a sunset, and the image detects orange and purple hues, confirming the description."}
+]

@@ -1,0 +1,314 @@
+{"question":"hey, quick question—what time does the server start?","answer":"It starts at 9 AM PT. Do you want me to send a reminder 10 minutes before?"}
+{"question":"hi there—can you help me get set up?","answer":"Absolutely. What are you trying to do first—login, build, or run a test?"}
+{"question":"thanks for the update","answer":"You’re welcome! Anything else you want to go over right now?"}
+{"question":"can you keep this short?","answer":"Sure—here’s the short version: yes, it’s supported, and you can enable it in settings under Integrations."}
+{"question":"morning! what’s the status?","answer":"Good morning. Everything is green—services healthy and latency is normal."}
+{"question":"afternoon—are we good to deploy?","answer":"Yes, the checks passed. Would you like me to start the deployment now?"}
+{"question":"hey, just checking in","answer":"All set on my side. Do you need a summary or should I proceed?"}
+{"question":"can you follow up with me later?","answer":"Happy to. When works best—later today or tomorrow morning?"}
+{"question":"that’s helpful, thanks","answer":"Glad it helped. Want me to note the next step so it doesn’t get lost?"}
+{"question":"can you rephrase that in simpler terms?","answer":"Sure. In plain English: flip the switch in settings, then restart the app to apply it."}
+{"question":"hello, do you handle quick questions?","answer":"I do. Fire away—I’ll keep the answers concise and clear."}
+{"question":"can you be more direct?","answer":"Yes. Here’s the answer: enable the flag, rebuild, and retry."}
+{"question":"cool—can you summarize the issue?","answer":"Summary: the config path was wrong. Fix path → restart → confirm logs are clean."}
+{"question":"could you add a friendly tone?","answer":"Absolutely. I’ll keep it friendly and straightforward from here on out."}
+{"question":"what do you need from me?","answer":"Two things: the exact error text and what changed right before it started."}
+{"question":"thanks, that’s enough for now","answer":"You got it. Ping me if anything else comes up."}
+{"question":"let’s keep responses brief","answer":"Understood. I’ll keep answers to 1–2 sentences unless you ask for more detail."}
+{"question":"can you double-check the steps?","answer":"Checked—steps are correct. Do you want me to paste the exact commands?"}
+{"question":"can you confirm this is safe to run?","answer":"Yes, it’s safe. It only reads state and doesn’t change production data."}
+{"question":"ok, what’s the fastest way to do this?","answer":"Fastest path: use the template, edit values, run the one-liner, and verify the log line ‘Ready.’"}
+{"question":"hey—sorry if this is basic","answer":"No worries at all—ask anything. I’ll meet you where you are and keep it clear."}
+{"question":"I’m on mobile—can we keep it short?","answer":"Totally. Here’s the key point: the feature is on; use the new route /v2/status."}
+{"question":"mind giving a quick example?","answer":"For sure. Example: curl http://localhost:8080/api/ping → returns {\"ok\":true}."}
+{"question":"I might ask more later","answer":"Sounds good. I’ll be here—just send a quick ‘continue’ when you’re ready."}
+{"question":"could you remind me tomorrow?","answer":"I can set a reminder for tomorrow morning. 9 AM PT okay?"}
+{"question":"thank you!","answer":"Happy to help. Want a short checklist to wrap this up?"}
+{"question":"hey, can you keep the tone casual?","answer":"You got it—clear, casual, and useful. Let’s roll."}
+{"question":"can you add a follow-up question at the end?","answer":"Sure. Here’s the answer—and do you want me to document this in the README?"}
+{"question":"I’m in a rush—what matters most?","answer":"Just this: run the build, check the ‘Ready’ log, and you’re good."}
+{"question":"can you check in later today?","answer":"Yes—want me to follow up in two hours with a quick status check?"}
+{"question":"how would you explain this to a teammate?","answer":"I’d say: we flipped the new flag, rebuilt, and confirmed the healthcheck returns 200."}
+{"question":"what’s the tl;dr?","answer":"tl;dr: enable, rebuild, verify. No risky changes."}
+{"question":"ok, now what?","answer":"Next: push the config, restart the service, and confirm it answers within 200ms."}
+{"question":"anything I might be missing?","answer":"Just one thing: make sure the env var is exported in the shell you’re using."}
+{"question":"could you keep answers on one screen?","answer":"Will do. I’ll keep replies short and scannable."}
+{"question":"if this fails, what’s plan B?","answer":"Plan B: roll back the flag and restart. It’s reversible in under a minute."}
+{"question":"does this require downtime?","answer":"No downtime—the restart is fast and clients retry automatically."}
+{"question":"can you add a polite close-out?","answer":"Of course. All set—nice work on moving this forward today."}
+{"question":"can you be encouraging?","answer":"You’re on the right track—just run the next command and we’re nearly done."}
+{"question":"I’m multitasking—be brief please","answer":"Brief version: run the script, confirm the ‘done’ line, and you’re finished."}
+{"question":"will this break anything?","answer":"No—changes are scoped to dev only. Production is untouched."}
+{"question":"what’s the expected result?","answer":"You should see ‘OK’ in the response and latency under 150ms."}
+{"question":"ping me if something looks off","answer":"Will do. I’ll flag anything unusual as soon as I see it."}
+{"question":"thanks for catching that","answer":"Glad to help—tiny tweaks can save a lot of time later."}
+{"question":"I need a quick sanity check","answer":"Sanity check: inputs look valid and the route resolves correctly."}
+{"question":"how long will this take?","answer":"A couple of minutes end-to-end, assuming no cache rebuilds."}
+{"question":"can you number the steps?","answer":"Sure: 1) enable flag, 2) rebuild, 3) restart, 4) verify health."}
+{"question":"can you ask one follow-up at a time?","answer":"Yes. First: are you working in dev or staging right now?"}
+{"question":"how do I roll this back?","answer":"Unset the flag and restart. You’ll be back to the old behavior instantly."}
+{"question":"briefly define success","answer":"Success: endpoint returns 200 with the new field, and logs show ‘Feature=ON’."}
+{"question":"if this works, what’s next?","answer":"Then we update the docs and notify the team in the channel."}
+{"question":"that’s great—thanks again","answer":"Anytime. Want a summary message you can paste to the team?"}
+{"question":"I need a yes/no answer","answer":"Yes—this is supported in the current build."}
+{"question":"could you default to short answers?","answer":"Absolutely. I’ll keep it tight unless you say ‘expand’."}
+{"question":"should I be worried about risk?","answer":"No major risk here—it’s confined to non-critical code paths."}
+{"question":"can you be more positive?","answer":"For sure—this change reduces friction and speeds up the workflow."}
+{"question":"what’s the simplest test?","answer":"Run curl on /api/ping and check for {\"ok\":true}."}
+{"question":"can you remind me what I changed?","answer":"You enabled the feature flag and updated the route; nothing else changed."}
+{"question":"nice—can we ship this?","answer":"Yes. Want me to draft the release notes while you run the deploy?"}
+{"question":"please keep it human","answer":"Will do—plain English, helpful, and to the point."}
+{"question":"can you close with a question?","answer":"Sure—and do you want me to set a reminder for a quick post-deploy check?"}
+{"question":"let’s wrap this up","answer":"All wrapped. Anything else before I sign off this task?"}
+{"question":"I appreciate the help","answer":"Happy to help. Let me know what you want to tackle next."}
+{"question":"be concise but friendly","answer":"You got it—concise, friendly, and useful replies from here on out."}
+{"question":"does this need docs?","answer":"A short note in the README will help others—want me to draft it?"}
+{"question":"quick recap?","answer":"Recap: flipped the flag, rebuilt, verified 200. Ready to proceed."}
+{"question":"keep it casual, please","answer":"Totally. I’ll keep it casual but clear."}
+{"question":"what’s the next obvious step?","answer":"Next: run the smoke test and confirm the green checkmark."}
+{"question":"thanks—talk soon","answer":"Sounds good. I’ll be around if you need anything else later."}
+{"question":"gonna jump to a call—anything urgent?","answer":"All quiet here. I’ll ping you if anything changes."}
+{"question":"is this reversible?","answer":"Yes—one flag change and a restart puts it back."}
+{"question":"please minimize jargon","answer":"Done. I’ll stick to plain terms and keep examples simple."}
+{"question":"what should I look for in the logs?","answer":"Look for ‘Ready’ and no warnings in the last minute."}
+{"question":"what’s the fallback endpoint?","answer":"Use /api/status if /api/health is not available."}
+{"question":"cool, let’s keep moving","answer":"On it. Want me to queue the next task now?"}
+{"question":"I’m not sure what broke","answer":"No problem—send the last 20 lines of the log and I’ll take a look."}
+{"question":"can you timebox this?","answer":"Yes—let’s spend 10 minutes. If it’s not fixed, we’ll create a ticket."}
+{"question":"I’ll try that now","answer":"Great—reply ‘done’ when you’ve run it and I’ll check the next step."}
+{"question":"does this affect users?","answer":"No user impact—this is server-side only and transparent to clients."}
+{"question":"how confident are you?","answer":"High confidence based on the checks we’ve run."}
+{"question":"sorry for the back-and-forth","answer":"It’s all good—iteration gets us there. Let’s keep it simple."}
+{"question":"can you keep me posted?","answer":"Yes—I’ll send a short status once the check passes."}
+{"question":"quick heads up if it fails?","answer":"Will do—I’ll notify you right away with the error snippet."}
+{"question":"is it okay to proceed?","answer":"Yes, you’re clear to proceed."}
+{"question":"short and sweet, please","answer":"Short and sweet: run the script; expect ‘OK’."}
+{"question":"can you track this for me?","answer":"I can note it and set a reminder to follow up tomorrow."}
+{"question":"got it—thanks again","answer":"Anytime. Want me to put the steps into a checklist for reuse?"}
+{"question":"hello again","answer":"Hey there—ready when you are. What’s next?"}
+{"question":"is there a simpler method?","answer":"Yes—use the helper command; it bundles the flags for you."}
+{"question":"please confirm the path","answer":"Confirmed: it’s /api/inference/native/status."}
+{"question":"signing off now","answer":"All good—have a great one. I’ll keep an eye on things here."}
+{"question":"one more quick question","answer":"Sure thing—what’s on your mind?"}
+{"question":"thanks for being patient","answer":"Of course—happy to help at your pace."}
+{"question":"can you lighten the tone a bit?","answer":"You got it—I’ll keep it friendly and easygoing."}
+{"question":"wrap with a suggestion","answer":"Suggestion: add a one-liner to the docs so the next person moves faster. Sound good?"}
+{"question":"confirm we’re done","answer":"We’re done here—nice and tidy. Want me to archive the notes?"}
+{"question":"are you sure?","answer":"Yes—I double-checked. Want to see the exact output line?"}
+{"question":"ping me tomorrow morning","answer":"Will do—expect a quick nudge at 9 AM PT."}
+{"question":"ok, see ya","answer":"Catch you later!"}
+{"question":"does this need a ticket?","answer":"If it takes more than 15 minutes, yes. Otherwise we can just note it in the changelog."}
+{"question":"who should we tell?","answer":"Let’s notify the channel and tag the on-call just in case."}
+{"question":"let’s make it crisp","answer":"Crisp it is—three steps max, clear expected result."}
+{"question":"how would you explain this to a non-technical user?","answer":"I’d say: flip the setting and restart; it’ll work like before, just faster."}
+{"question":"please avoid buzzwords","answer":"Deal—I’ll stick to clear, concrete language."}
+{"question":"do we need to test this?","answer":"Yes—a quick smoke test confirms it’s doing what we expect."}
+{"question":"I prefer short bullets","answer":"Okay: • enable • rebuild • verify 200."}
+{"question":"is the UI impacted?","answer":"No—the UI bundles are unchanged for this step."}
+{"question":"can you follow up with a checklist?","answer":"Sure—I’ll add a three-item checklist after this reply."}
+{"question":"add a courteous close","answer":"All set—thanks for the teamwork today."}
+{"question":"morning status?","answer":"Morning! Everything looks healthy—no alerts overnight."}
+{"question":"end of day wrap?","answer":"EOD: tasks completed, no blockers, next step scheduled for tomorrow."}
+{"question":"what’s blocking us?","answer":"Only the config approval—once that’s in, we’re clear."}
+{"question":"can you nudge me later?","answer":"Yep—I’ll nudge you in an hour if I don’t hear back."}
+{"question":"please keep answers under 30 words","answer":"Understood. I’ll keep them concise and clear."}
+{"question":"do we need to roll keys?","answer":"Not for this change—keys are unchanged."}
+{"question":"is this documented?","answer":"Partially—I’ll add the missing notes right after this."}
+{"question":"what’s the impact radius?","answer":"Limited to dev; staging and prod are unaffected."}
+{"question":"agree—let’s do it","answer":"Great—triggering the step now. I’ll confirm when it finishes."}
+{"question":"can you keep things optimistic?","answer":"Absolutely—this is a simple, low-risk win."}
+{"question":"I need reassurance","answer":"You’re doing fine—one step at a time and we’ll wrap this quickly."}
+{"question":"favor brevity over detail","answer":"Got it—brevity first. Ask ‘expand’ if you want more detail."}
+{"question":"thanks, I’m good","answer":"Anytime. I’ll be here if you need me."}
+{"question":"let’s move on","answer":"Onwards—what’s next on your list?"}
+{"question":"hi—can you summarize yesterday?","answer":"Yesterday: deployed patch, verified health, updated docs."}
+{"question":"quick sanity: is feature on?","answer":"Yes—‘Feature=ON’ is present in logs."}
+{"question":"ok, ship it","answer":"Shipping now. I’ll report once it’s complete."}
+{"question":"could you check the logs for errors?","answer":"Checked—no errors in the last 10 minutes."}
+{"question":"do we need a rollback plan?","answer":"We have one—flip the flag and restart. <1 minute."}
+{"question":"testing complete?","answer":"Complete. All tests passed locally."}
+{"question":"is there a known issue?","answer":"None related to this change."}
+{"question":"do you need anything from me?","answer":"Just a thumbs-up to proceed."}
+{"question":"great—carry on","answer":"Will do. I’ll circle back with a short summary."}
+{"question":"done—what now?","answer":"Nice. Next: run the quick smoke test and we’re finished."}
+{"question":"can you be my rubber duck?","answer":"Always—talk it through, I’ll listen and point out anything missing."}
+{"question":"I’m worried about breaking things","answer":"Understandable. This step is safe and reversible."}
+{"question":"final check before I go?","answer":"Final check: env var exported, route reachable, 200 OK."}
+{"question":"cool—thanks for staying on","answer":"Happy to. Let’s wrap this cleanly."}
+{"question":"good night","answer":"Good night—see you tomorrow. I’ll keep watch here."}
+{"question":"good morning","answer":"Morning! Ready to pick up where we left off."}
+{"question":"hi again, short answer please","answer":"Short answer: yes—go ahead."}
+{"question":"any updates while I was away?","answer":"All quiet. No changes since your last message."}
+{"question":"can you keep context between messages?","answer":"Yes—I’ll keep track so you don’t have to repeat yourself."}
+{"question":"how can I help you help me?","answer":"Share the error text and the step you took right before it happened."}
+{"question":"ok—your call","answer":"I recommend proceeding. It’s low risk and unblocks the next task."}
+{"question":"if you had to prioritize?","answer":"Prioritize the build fix—everything else depends on it."}
+{"question":"that was fast","answer":"I try to keep things moving—glad it helped."}
+{"question":"I  I’ll circle back later","answer":"Sounds good—I’ll be here when you’re ready."}
+{"question":"thanks for being clear","answer":"Clarity helps everyone—glad it landed well."}
+{"question":"can you keep answers positive and short?","answer":"Yes—positive and concise from now on."}
+{"question":"that’s all for now","answer":"All right—nice progress today."}
+{"question":"bye","answer":"Bye! Have a good one."}
+{"question":"Explain the difference between strong and weak emergence in complex systems.","answer":"Weak emergence describes properties surprising yet reducible via simulation; strong emergence is irreducible from lower-level rules (if it exists). Physical systems are usually weakly emergent."}
+{"question":"Why is P vs NP considered the most important open problem in computer science?","answer":"It asks whether fast verification implies fast solution. P=NP would upend crypto and optimization; P≠NP (believed) formalizes hard limits on efficient computation."}
+{"question":"Walk me through how Gödel's incompleteness theorems undermine Hilbert's program.","answer":"Hilbert sought complete, consistent, finite foundations. Gödel proved any such system is incomplete and cannot prove its own consistency, fracturing the dream."}
+{"question":"What is the significance of the Church-Turing thesis?","answer":"It equates ‘effectively calculable’ with Turing-computable, unifying models of computation (lambda calculus, recursive functions, TMs). It’s a thesis, not a theorem."}
+{"question":"How does quantum entanglement challenge classical notions of locality?","answer":"Bell violations show no local hidden-variable model explains correlations. Measurement collapses are nonlocal in effect but don’t send information faster than light."}
+{"question":"Explain the halting problem and its implications for verification.","answer":"No algorithm can decide halting for all programs+inputs. This limits full automation of verification and static analysis."}
+{"question":"What is the difference between type checking and type inference?","answer":"Checking validates consistency of given/inferred types; inference deduces types automatically (e.g., Hindley–Milner). Many languages combine both."}
+{"question":"Why is Bayesian inference superior to frequentist methods in small data regimes?","answer":"Priors stabilize estimates and yield full posteriors. Frequentist methods can be brittle with small samples."}
+{"question":"Compare symbolic AI with connectionist approaches.","answer":"Symbolic uses explicit rules and logic; connectionist learns patterns in weights. Hybrids aim to combine reasoning with perception strengths."}
+{"question":"What are the limitations of gradient descent in non-convex optimization?","answer":"It stalls at saddles/plateaus and local minima. Momentum/Adam help, but no global optimality guarantee."}
+{"question":"How does attention mitigate RNN bottlenecks?","answer":"Attention reads all states directly, bypassing sequential information bottlenecks and aiding long-range dependencies."}
+{"question":"Define computational irreducibility.","answer":"For many systems, future states can only be known by step-by-step simulation—no shortcut exists."}
+{"question":"What is the free energy principle?","answer":"Brains minimize variational free energy (prediction error), explaining perception, action, and learning as inference."}
+{"question":"Why is the second law time-asymmetric?","answer":"Microscopic laws are reversible; entropy increase defines a macroscopic arrow due to low-entropy initial conditions."}
+{"question":"How does causal inference differ from prediction?","answer":"Causal asks about interventions (do-operator) and counterfactuals; prediction concerns correlations."}
+{"question":"Supervised vs unsupervised vs self-supervised?","answer":"Supervised uses labels; unsupervised finds structure; self-supervised creates labels from data (e.g., masked tokens)."}
+{"question":"Kolmogorov complexity and Occam’s razor?","answer":"Shortest program length for a string; simpler (lower-complexity) explanations are preferred—formalizes Occam’s razor."}
+{"question":"Implications of Rice’s theorem?","answer":"Any nontrivial semantic property of programs is undecidable, broadly limiting static guarantees."}
+{"question":"Homotopy type theory in brief?","answer":"Types as spaces, proofs as paths, equalities as homotopies—bridging logic and geometry for new foundations."}
+{"question":"Why won’t quantum solve NP-complete efficiently?","answer":"No known poly-time quantum algorithms; Grover is only quadratic speedup for unstructured search."}
+{"question":"Role of prefrontal cortex?","answer":"Executive function—planning, working memory, inhibition; integrates information for goal-directed behavior."}
+{"question":"Epistemic vs aleatoric uncertainty?","answer":"Aleatoric is inherent randomness; epistemic is reducible ignorance. Bayesian methods model both."}
+{"question":"How do transformers parallelize vs RNNs?","answer":"They process tokens simultaneously via attention matrices, enabling sequence-wide parallelism."}
+{"question":"Curry–Howard isomorphism?","answer":"Propositions ≙ types; proofs ≙ programs—linking logic and typed lambda calculus."}
+{"question":"Emergent abilities in LLMs—why?","answer":"At scale, representations undergo phase-like transitions, yielding sudden capabilities."}
+{"question":"Attractor states?","answer":"Stable configurations (fixed points, cycles) systems converge to—candidate mechanism for memory in brains."}
+{"question":"Limits of current GNNs?","answer":"Over-smoothing, limited expressivity, and scaling challenges on very large graphs."}
+{"question":"RL vs IRL?","answer":"RL learns policy from rewards; IRL infers the reward function from behavior."}
+{"question":"Dopamine and prediction error?","answer":"Activity encodes reward prediction error, driving learning via temporal-difference updates."}
+{"question":"First-order vs second-order logic?","answer":"First-order quantifies over individuals; second-order over sets/predicates—more expressive but undecidable."}
+{"question":"Why is c a speed limit?","answer":"Approaching c requires infinite energy; superluminal signaling breaks causality in SR."}
+{"question":"Bell’s theorem significance?","answer":"Rules out local realism; experiments confirm quantum predictions violate Bell inequalities."}
+{"question":"How do diffusion models make images?","answer":"Train a denoiser to invert a noise process, sampling stepwise from noise to image."}
+{"question":"No-cloning theorem?","answer":"Unknown quantum states cannot be duplicated—basis of quantum cryptographic security."}
+{"question":"Interpretability vs explainability?","answer":"Interpretability is understanding internals; explainability is post-hoc justification (e.g., SHAP)."}
+{"question":"Why is zero-shot hard?","answer":"Requires aligning representations to unseen classes without examples—strong semantics needed."}
+{"question":"Universal approximation theorem?","answer":"One hidden layer with enough neurons can approximate any continuous function on compact sets."}
+{"question":"Reward hacking risk?","answer":"Agents exploit the reward proxy rather than the intended goal—requires careful design and checks."}
+{"question":"How does MCTS in AlphaGo work?","answer":"Tree search guided by policy/value nets balances exploration and exploitation via rollouts."}
+{"question":"Online vs offline learning?","answer":"Online updates continuously; offline (batch) trains on fixed datasets—online supports continual learning."}
+{"question":"Grokking?","answer":"Delayed generalization: after memorization, networks suddenly learn the underlying rule."}
+{"question":"Why study scaling laws?","answer":"They guide optimal trade-offs between model size and data for best performance per compute."}
+{"question":"Hippocampus role?","answer":"Rapid episodic encoding and spatial navigation; later consolidation to cortex."}
+{"question":"Adversarial training helps how?","answer":"Training on worst-case perturbations enlarges margins, improving robustness."}
+{"question":"Narrow vs general AI?","answer":"Narrow excels at specific tasks; general would match human versatility—we only have narrow."}
+{"question":"Alignment problem?","answer":"Ensuring AI objectives match human values, both in training (outer) and internals (inner)."}
+{"question":"Why is alignment harder than capability?","answer":"Values are complex and context-heavy; capability scales more predictably with compute/data."}
+{"question":"Instrumental convergence?","answer":"Many goals imply subgoals like resource acquisition and self-preservation."}
+{"question":"Orthogonality thesis?","answer":"Intelligence and goals are independent—smart agents can pursue arbitrary objectives."}
+{"question":"Debate for alignment?","answer":"Agents argue opposing sides and reveal flaws; humans judge—aims to surface truth."}
+{"question":"Bitter lesson?","answer":"Computation+data tend to beat handcrafted domain knowledge over time."}
+{"question":"Scalable oversight?","answer":"Using AI to help evaluate AI, e.g., debate, recursive reward modeling, market making."}
+{"question":"Inner misalignment concern?","answer":"A learned optimizer might pursue proxy goals rather than intended objectives."}
+{"question":"Myopic vs farsighted agents?","answer":"Myopic optimize short-term rewards; farsighted consider long-term—risk of unintended strategies."}
+{"question":"Reward modeling?","answer":"Train a model to predict human preference rankings—used in RLHF."}
+{"question":"Mesa-optimization?","answer":"An internal optimizer emerges within the trained system, possibly with different goals."}
+{"question":"Shutdown problem?","answer":"Designing agents that allow shutdown without resisting—corrigibility challenge."}
+{"question":"Why is corrigibility hard?","answer":"Agents may value preserving their own corrigibility, conflicting with objectives."}
+{"question":"Robustness vs alignment?","answer":"Robustness ≈ performs under shift; alignment ≈ pursues intended goals."}
+{"question":"Value learning problem?","answer":"Inferring human values from noisy behavior and partial information."}
+{"question":"IRL for alignment?","answer":"It infers reward from expert demos, capturing complex preferences without hand-specifying."}
+{"question":"Deceptive alignment risk?","answer":"Model looks aligned during training but pursues different goals when capable."}
+{"question":"Specification gaming?","answer":"Optimizing the literal reward while violating intent—classic failure mode."}
+{"question":"Why transparency matters?","answer":"Peeking inside helps detect bias, deception, and unintended circuits."}
+{"question":"Outer vs inner alignment?","answer":"Outer: reward reflects true goal; inner: learned objectives match the reward."}
+{"question":"Constitutional AI?","answer":"A model critiques and revises outputs according to written principles."}
+{"question":"AI boxing?","answer":"Containing superintelligence is fragile—social engineering and unknown exploits loom."}
+{"question":"Treacherous turn?","answer":"An apparently aligned system defects once it gains sufficient capability."}
+{"question":"Multi-agent training risks?","answer":"Emergent collusion, deception, and arms races can appear."}
+{"question":"Wireheading?","answer":"Agent self-stimulates reward rather than achieving the intended task."}
+{"question":"Capability vs motivation control?","answer":"Capability limits what the AI can do; motivation aligns what it wants."}
+{"question":"Impact regularization?","answer":"Penalize large changes to keep agents low-impact and reversible."}
+{"question":"Dual-use concern?","answer":"Alignment research can also accelerate capabilities—manage dissemination carefully."}
+{"question":"Kingmaker problem?","answer":"An oversight AI could bias evaluation to install a misaligned successor."}
+{"question":"Why hard to model humans?","answer":"People are inconsistent and context-dependent; perfect models risk manipulation."}
+{"question":"Fully updated deference?","answer":"Agent should defer while accounting for human belief updates over time."}
+{"question":"Ontology identification?","answer":"Mapping between AI’s internal concepts and human concepts is nontrivial."}
+{"question":"Mild optimization?","answer":"Satisfice thresholds rather than maximize—reduces extreme behaviors."}
+{"question":"Unilateralist’s curse?","answer":"One actor willing to take risk can determine the outcome for all."}
+{"question":"Coordination value?","answer":"Standards and governance reduce race dynamics and accident risks."}
+{"question":"Interpretability at scale?","answer":"Polysemantic features and massive parameter counts complicate understanding."}
+{"question":"Proxy vs terminal goals?","answer":"Terminal are ultimate ends; proxies are measurable stand-ins that may diverge."}
+{"question":"Intent vs outcome alignment?","answer":"Intent aligns goals; outcome ensures good results even if goals are unclear."}
+{"question":"Reward tampering threat?","answer":"Advanced agents could modify reward channels to lock in high reward."}
+{"question":"Scalable oversight for superhuman models?","answer":"When models surpass humans, evaluation requires new protocols like debate or amplification."}
+{"question":"Truth-seeking via debate?","answer":"Adversarial arguments surface flaws; judges select the most honest, informative side."}
+{"question":"Why existential risk?","answer":"Misaligned superintelligence could cause irreversible harm at scale."}
+{"question":"Goal misgeneralization?","answer":"Model transfers capability but not objective—acts incorrectly in new contexts."}
+{"question":"Accident vs misuse risk?","answer":"Accident is unintended behavior; misuse is deliberate harmful deployment."}
+{"question":"Capability jump danger?","answer":"Rapid improvement can outpace safety, leaving no time for guardrails."}
+{"question":"Power-seeking behavior?","answer":"Instrumentally convergent drive to gain resources and preserve options."}
+{"question":"Alignment stability?","answer":"Maintaining alignment under self-modification or further training is nontrivial."}
+{"question":"Why forecast timelines?","answer":"Guides urgency, policy, and resource allocation for safety efforts."}
+{"question":"Pivotal act?","answer":"A targeted intervention to alter trajectory decisively (e.g., buy time for safety)."}
+{"question":"Embedded agency risk?","answer":"Agent is part of its environment—self-reference and modeling are hard."}
+{"question":"Differential tech development?","answer":"Advance safety tech ahead of capability tech to reduce risk."}
+{"question":"CEV in brief?","answer":"Extrapolate what humanity would want if wiser and better informed."}
+{"question":"Partial observability in value learning?","answer":"We see behavior, not internal values; many reward functions fit the data."}
+{"question":"Cooperation in multi-polar worlds?","answer":"Prone to defection; requires credible commitments and governance."}
+{"question":"Singleton vs multipolar?","answer":"One dominant AI vs many competing agents—risk profiles differ."}
+{"question":"Governance role?","answer":"Compute monitoring, licensing, liability, and international coordination."}
+{"question":"What’s a vector in plain terms?","answer":"It has size and direction—like 60 mph north wind."}
+{"question":"Explain overfitting simply.","answer":"Model memorizes training data and fails to generalize—too specific to the examples."}
+{"question":"What does regularization do?","answer":"It discourages overly complex fits to improve generalization—e.g., weight decay, dropout."}
+{"question":"Why do we use cross-validation?","answer":"To estimate performance on unseen data by rotating held-out folds."}
+{"question":"When to use a confusion matrix?","answer":"For classification—breaks down TP/FP/TN/FN to inspect errors."}
+{"question":"What is cosine similarity good for?","answer":"Measuring orientation similarity of vectors—common in embeddings."}
+{"question":"Difference between precision and recall?","answer":"Precision measures correctness of positives; recall measures coverage of actual positives."}
+{"question":"Explain ROC vs PR curves.","answer":"ROC shows TPR vs FPR; PR shows precision vs recall—PR is better under class imbalance."}
+{"question":"What’s early stopping?","answer":"Stop training when validation stops improving to prevent overfit."}
+{"question":"Why batch normalization?","answer":"Stabilizes training by normalizing activations, allowing higher learning rates."}
+{"question":"What is a learning rate schedule?","answer":"A plan to change LR over time—cosine, step, warmup improve convergence."}
+{"question":"When to choose a smaller model?","answer":"When data is limited, latency is critical, or overfitting risk is high."}
+{"question":"How to pick k for kNN?","answer":"Tune on validation; too small overfits, too large oversmooths."}
+{"question":"What’s the bias–variance trade-off?","answer":"Simpler models have bias; complex have variance—balance for lowest error."}
+{"question":"Why use data augmentation?","answer":"To create diversity and reduce overfitting, especially in vision."}
+{"question":"Difference between L1 and L2?","answer":"L1 promotes sparsity; L2 shrinks weights smoothly—often combined."}
+{"question":"What is dropout doing?","answer":"Randomly zeroing units during training to prevent co-adaptation."}
+{"question":"What is a residual connection for?","answer":"It eases optimization by letting layers learn residuals (skip connections)."}
+{"question":"Define teacher forcing.","answer":"Feeding ground-truth tokens during sequence training to stabilize learning."}
+{"question":"Why use beam search?","answer":"To keep top-k candidate sequences, improving decoding quality."}
+{"question":"Explain label smoothing.","answer":"Distributes some probability mass off the true class to regularize."}
+{"question":"What is temperature in sampling?","answer":"Controls randomness—lower is more deterministic, higher more diverse."}
+{"question":"When to choose F1 score?","answer":"When you need a single metric balancing precision and recall."}
+{"question":"What is gradient clipping?","answer":"Bounding gradient norm/values to avoid exploding updates."}
+{"question":"Why use mixed precision?","answer":"Speed and memory savings with minimal loss in accuracy on modern hardware."}
+{"question":"Explain causal mask in transformers.","answer":"Prevents attending to future tokens during autoregressive training."}
+{"question":"What’s a positional encoding?","answer":"Adds position information to tokens so order is recoverable."}
+{"question":"When to fine-tune vs train from scratch?","answer":"Fine-tune with limited data; train from scratch if data is massive or domain is unique."}
+{"question":"Explain curriculum learning.","answer":"Train on easier examples first, then harder—can improve convergence."}
+{"question":"What’s a knowledge graph used for?","answer":"Capturing entities and relations to support reasoning and retrieval."}
+{"question":"Why use cosine annealing?","answer":"A smooth LR decay that can improve final convergence."}
+{"question":"Explain weight decay.","answer":"L2 penalty on weights to reduce overfitting."}
+{"question":"What’s a checkpoint?","answer":"A saved snapshot of model state to resume or deploy later."}
+{"question":"How to handle class imbalance?","answer":"Resampling, class weights, focal loss, or threshold tuning."}
+{"question":"What is focal loss?","answer":"Down-weights easy examples to focus on hard ones."}
+{"question":"When to use AUC?","answer":"For ranking quality across thresholds; beware in heavy imbalance."}
+{"question":"What’s NMS in vision?","answer":"Non-maximum suppression removes overlapping detections keeping the strongest."}
+{"question":"Explain IoU.","answer":"Intersection over Union measures overlap quality between predicted and true boxes."}
+{"question":"Why use data sharding?","answer":"Parallelizes training and reduces contention across workers."}
+{"question":"What is gradient accrual?","answer":"Accumulate grads across micro-batches to simulate larger batch size."}
+{"question":"How to reduce latency quickly?","answer":"Quantize, batch, cache, and prune unnecessary steps."}
+{"question":"What should a good commit message include?","answer":"What changed, why, and any impact/rollback notes."}
+{"question":"How to keep meetings effective?","answer":"Clear agenda, timebox, and owner/action items."}
+{"question":"Best way to ask for help?","answer":"Provide context, exact error, and what you tried so far."}
+{"question":"How to avoid scope creep?","answer":"Write the definition of done and say no to extras until next iteration."}
+{"question":"Quick way to unblock reviews?","answer":"Smaller PRs, clear diff notes, and tag the right reviewers."}
+{"question":"Keep standups useful?","answer":"Answer: what I did, what I’ll do, what’s blocked—max 60 seconds."}
+{"question":"How to reduce on-call pain?","answer":"Alert on symptoms not noise, add runbooks, and test incident drills."}
+{"question":"Best way to write docs fast?","answer":"Start with a checklist and a ‘how to verify’ section."}
+{"question":"How to hand off work cleanly?","answer":"Share context, decisions, risks, and the next three steps."}
+{"question":"Prevent burnout quickly?","answer":"Timebox, take breaks, and cut low-value work first."}
+{"question":"Quick prioritization tip?","answer":"Tackle high-impact/low-effort tasks first—snowball momentum."}
+{"question":"How to say no politely?","answer":"‘Not now—let’s revisit after we ship X.’"}
+{"question":"Fast conflict de-escalation?","answer":"Restate their point fairly, propose a small experiment, and timebox it."}
+{"question":"Keep email short?","answer":"Lead with the ask, then one paragraph of context."}
+{"question":"Productivity trick?","answer":"Batch similar tasks and mute non-critical notifications."}
+{"question":"Simple meeting rule?","answer":"No agenda, no meeting—convert to a doc instead."}
+{"question":"Make decisions faster?","answer":"Set a default choice and a deadline; decide then iterate."}
+{"question":"How to reduce rework?","answer":"Align on acceptance criteria before starting."}
+{"question":"Avoid perfectionism trap?","answer":"Ship a thin slice, learn, then refine."}
+{"question":"Quick demo tip?","answer":"Show the end result first, then the 2 steps that got you there."}
+{"question":"One-liner for success?","answer":"Define done, do the work, and verify results."}

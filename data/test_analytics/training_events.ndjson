@@ -1,0 +1,39 @@
+{
+  "event_id": "EVT-1766521393-0",
+  "session_id": "SESSION_001",
+  "scenario_id": "SCENARIO_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=88 bp=118 spo2=97 temp=37.2",
+  "elapsed_seconds": 60,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-1",
+  "session_id": "SESSION_001",
+  "scenario_id": "",
+  "timestamp": 1766521393,
+  "event_type": "AI_RECOMMENDATION",
+  "event_data": "rec_id=REC_001 text=Monitor vitals",
+  "elapsed_seconds": 120,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-2",
+  "session_id": "SESSION_001",
+  "scenario_id": "",
+  "timestamp": 1766521393,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=apply_oxygen nurse_id=NURSE_001 timely=true",
+  "elapsed_seconds": 180,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}

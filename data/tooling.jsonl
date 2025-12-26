@@ -1,0 +1,6 @@
+[
+  {"id": "tool_001", "domain": "tool_orchestration", "input": "Execute task A then B.", "output": "Running Task A... Success. Running Task B... Success."},
+  {"id": "tool_002", "domain": "agent_workflow", "input": "Coordinate agents X and Y.", "output": "Agent X initialized. Agent Y initialized. Communication channel established."},
+  {"id": "tool_003", "domain": "execution_pipeline", "input": "Run build pipeline.", "output": "Compiling... Linking... Testing... Build Successful."},
+  {"id": "tool_004", "domain": "multi_step_action", "input": "Fetch data, process it, save it.", "output": "Fetching... Processing... Saving... Done."}
+]

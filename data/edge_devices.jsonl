@@ -1,0 +1,6 @@
+[
+  {"id": "iot_001", "domain": "edge_device_iot", "input": "Optimize power consumption for battery-operated sensor node.", "output": "Use deep sleep modes, optimize transmission intervals, use low-power protocols like BLE or Zigbee, and process data locally to reduce radio usage."},
+  {"id": "iot_002", "domain": "embedded_system", "input": "Interrupt handling best practices.", "output": "Keep ISRs (Interrupt Service Routines) as short as possible. Do not perform blocking operations or complex calculations inside an ISR. Set a flag and process data in the main loop."},
+  {"id": "iot_003", "domain": "edge_device", "input": "What is edge computing?", "output": "Edge computing is a distributed computing paradigm that brings computation and data storage closer to the sources of data (e.g., IoT devices) rather than relying on a central remote cloud. This improves response times and saves bandwidth."},
+  {"id": "iot_004", "domain": "embedded_cpp", "input": "volatile keyword usage.", "output": "The 'volatile' keyword tells the compiler that a variable's value may change at any time, without any action being taken by the code the compiler finds nearby. It prevents the compiler from optimizing out reads/writes to memory-mapped hardware registers or variables shared between ISRs and main code."}
+]

@@ -1,0 +1,546 @@
+{
+  "event_id": "EVT-1766521393-3",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=92 bp=118 spo2=96 temp=37.6",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-4",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=94 bp=117 spo2=96 temp=37.6",
+  "elapsed_seconds": 60,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-5",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=94 bp=118 spo2=96 temp=37.6",
+  "elapsed_seconds": 120,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-6",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=96 bp=119 spo2=96 temp=37.6",
+  "elapsed_seconds": 180,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-7",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=97 bp=120 spo2=96 temp=37.6",
+  "elapsed_seconds": 240,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-8",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=97 bp=118 spo2=96 temp=37.6",
+  "elapsed_seconds": 300,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-9",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=96 bp=117 spo2=96 temp=37.6",
+  "elapsed_seconds": 360,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-10",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=98 bp=116 spo2=96 temp=37.6",
+  "elapsed_seconds": 420,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-11",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=97 bp=114 spo2=96 temp=37.6",
+  "elapsed_seconds": 480,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-12",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=98 bp=113 spo2=96 temp=37.6",
+  "elapsed_seconds": 540,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-13",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=108 bp=111 spo2=96 temp=38.8",
+  "elapsed_seconds": 600,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-14",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "",
+  "timestamp": 1766521393,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=initiate_sepsis_bundle nurse_id=NURSE_002 timely=true",
+  "elapsed_seconds": 600,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-15",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=107 bp=110 spo2=96 temp=38.8",
+  "elapsed_seconds": 660,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-16",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=105 bp=110 spo2=96 temp=38.8",
+  "elapsed_seconds": 720,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-17",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=107 bp=108 spo2=96 temp=38.8",
+  "elapsed_seconds": 780,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-18",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=105 bp=107 spo2=96 temp=38.8",
+  "elapsed_seconds": 840,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-19",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=106 bp=108 spo2=96 temp=38.8",
+  "elapsed_seconds": 900,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-20",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=107 bp=108 spo2=96 temp=38.8",
+  "elapsed_seconds": 960,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-21",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=107 bp=108 spo2=96 temp=38.8",
+  "elapsed_seconds": 1020,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-22",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=107 bp=106 spo2=96 temp=38.8",
+  "elapsed_seconds": 1080,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-23",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=106 bp=107 spo2=96 temp=38.8",
+  "elapsed_seconds": 1140,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-24",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=105 bp=86 spo2=96 temp=38.8",
+  "elapsed_seconds": 1200,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-25",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "",
+  "timestamp": 1766521393,
+  "event_type": "AI_RECOMMENDATION",
+  "event_data": "rec_id=REC-001 text=Initiate sepsis bundle: blood cultures, lactate, IV fluids, antibiotics",
+  "elapsed_seconds": 1200,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-26",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=104 bp=86 spo2=96 temp=38.8",
+  "elapsed_seconds": 1260,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-27",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "",
+  "timestamp": 1766521393,
+  "event_type": "AI_RECOMMENDATION",
+  "event_data": "rec_id=REC-001 text=Initiate sepsis bundle: blood cultures, lactate, IV fluids, antibiotics",
+  "elapsed_seconds": 1260,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-28",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=103 bp=86 spo2=96 temp=38.8",
+  "elapsed_seconds": 1320,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-29",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "",
+  "timestamp": 1766521393,
+  "event_type": "AI_RECOMMENDATION",
+  "event_data": "rec_id=REC-001 text=Initiate sepsis bundle: blood cultures, lactate, IV fluids, antibiotics",
+  "elapsed_seconds": 1320,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-30",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=105 bp=87 spo2=96 temp=38.8",
+  "elapsed_seconds": 1380,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-31",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "",
+  "timestamp": 1766521393,
+  "event_type": "AI_RECOMMENDATION",
+  "event_data": "rec_id=REC-001 text=Initiate sepsis bundle: blood cultures, lactate, IV fluids, antibiotics",
+  "elapsed_seconds": 1380,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-32",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=105 bp=87 spo2=96 temp=38.8",
+  "elapsed_seconds": 1440,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-33",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "",
+  "timestamp": 1766521393,
+  "event_type": "AI_RECOMMENDATION",
+  "event_data": "rec_id=REC-001 text=Initiate sepsis bundle: blood cultures, lactate, IV fluids, antibiotics",
+  "elapsed_seconds": 1440,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-34",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=107 bp=87 spo2=96 temp=38.8",
+  "elapsed_seconds": 1500,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-35",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "",
+  "timestamp": 1766521393,
+  "event_type": "AI_RECOMMENDATION",
+  "event_data": "rec_id=REC-001 text=Initiate sepsis bundle: blood cultures, lactate, IV fluids, antibiotics",
+  "elapsed_seconds": 1500,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-36",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=109 bp=85 spo2=96 temp=38.8",
+  "elapsed_seconds": 1560,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-37",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "",
+  "timestamp": 1766521393,
+  "event_type": "AI_RECOMMENDATION",
+  "event_data": "rec_id=REC-001 text=Initiate sepsis bundle: blood cultures, lactate, IV fluids, antibiotics",
+  "elapsed_seconds": 1560,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-38",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=108 bp=86 spo2=96 temp=38.8",
+  "elapsed_seconds": 1620,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-39",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "",
+  "timestamp": 1766521393,
+  "event_type": "AI_RECOMMENDATION",
+  "event_data": "rec_id=REC-001 text=Initiate sepsis bundle: blood cultures, lactate, IV fluids, antibiotics",
+  "elapsed_seconds": 1620,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-40",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=109 bp=86 spo2=96 temp=38.8",
+  "elapsed_seconds": 1680,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-41",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "",
+  "timestamp": 1766521393,
+  "event_type": "AI_RECOMMENDATION",
+  "event_data": "rec_id=REC-001 text=Initiate sepsis bundle: blood cultures, lactate, IV fluids, antibiotics",
+  "elapsed_seconds": 1680,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-42",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "VITALS_SNAPSHOT",
+  "event_data": "hr=111 bp=84 spo2=96 temp=38.8",
+  "elapsed_seconds": 1740,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-43",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "",
+  "timestamp": 1766521393,
+  "event_type": "AI_RECOMMENDATION",
+  "event_data": "rec_id=REC-001 text=Initiate sepsis bundle: blood cultures, lactate, IV fluids, antibiotics",
+  "elapsed_seconds": 1740,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766521393-44",
+  "session_id": "WALKTHROUGH_SESSION_001",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1766521393,
+  "event_type": "SESSION_COMPLETE",
+  "event_data": "outcome=COMPLETED nurse_id=NURSE_002 duration=1800",
+  "elapsed_seconds": 1800,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}

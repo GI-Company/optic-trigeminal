@@ -1,0 +1,28 @@
+{
+  "name": "optic-trigeminal-web",
+  "version": "3.0.0",
+  "description": "OpticTrigeminal Healthcare AI - Web Interface",
+  "type": "module",
+  "main": "dist/index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src/ || true",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0",
+    "terser": "^5.26.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "supports wasm"
+  ]
+}

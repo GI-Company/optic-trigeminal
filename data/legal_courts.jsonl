@@ -1,0 +1,6 @@
+[
+  {"id": "legal_001", "domain": "legal_court", "input": "What is the standard of proof in a criminal trial?", "output": "The standard of proof in a criminal trial is 'beyond a reasonable doubt'. This means the prosecution must prove the defendant's guilt to such an extent that there is no reasonable doubt in the mind of a reasonable person."},
+  {"id": "legal_002", "domain": "legal_contract", "input": "Explain the concept of 'consideration' in contract law.", "output": "Consideration refers to something of value exchanged between parties to a contract. It is the benefit that each party gets or expects to get from the contractual deal. Without consideration, a contract is generally invalid."},
+  {"id": "legal_003", "domain": "legal_court", "input": "What is 'hearsay' and is it admissible?", "output": "Hearsay is an out-of-court statement offered to prove the truth of the matter asserted. It is generally inadmissible as evidence, subject to various exceptions (e.g., excited utterance, dying declaration)."},
+  {"id": "legal_004", "domain": "legal_law", "input": "Define 'tort'.", "output": "A tort is a civil wrong that causes a claimant to suffer loss or harm, resulting in legal liability for the person who commits the tortious act."}
+]

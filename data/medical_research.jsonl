@@ -1,0 +1,6 @@
+[
+  {"id": "med_001", "domain": "medical_research", "input": "What is the primary mechanism of action of mRNA vaccines?", "output": "mRNA vaccines work by introducing a piece of mRNA that corresponds to a viral protein, usually where a piece of protein is properly produced cells use it to present viral antigens to the immune system."},
+  {"id": "med_002", "domain": "medical_clinical", "input": "Symptoms of Type 2 Diabetes?", "output": "Common symptoms include increased thirst, frequent urination, increased hunger, unintended weight loss, fatigue, blurred vision, and slow-healing sores."},
+  {"id": "med_003", "domain": "medical_health", "input": "Define 'homeostasis' in a biological context.", "output": "Homeostasis is the state of steady internal, physical, and chemical conditions maintained by living systems. This is the condition of optimal functioning for the organism and includes many variables, such as body temperature and fluid balance."},
+  {"id": "med_004", "domain": "medical_research", "input": "Explain CRISPR-Cas9.", "output": "CRISPR-Cas9 is a genome editing technology that allows researchers to alter DNA sequences and modify gene function. It uses a guide RNA to direct the Cas9 enzyme to a specific spot in the genome where it cuts the DNA strands."}
+]

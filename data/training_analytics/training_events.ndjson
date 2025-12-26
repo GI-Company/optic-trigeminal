@@ -1,0 +1,156 @@
+{
+  "event_id": "EVT-1766734590-0",
+  "session_id": "",
+  "scenario_id": "",
+  "timestamp": 1766734590,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=draw_blood_cultures nurse_id=RN_TRAINER_1766734574 timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766734591-1",
+  "session_id": "",
+  "scenario_id": "",
+  "timestamp": 1766734591,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=draw_blood_cultures nurse_id=RN_TRAINER_1766734574 timely=true",
+  "elapsed_seconds": 30,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766734591-2",
+  "session_id": "",
+  "scenario_id": "",
+  "timestamp": 1766734591,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=draw_blood_cultures nurse_id=RN_TRAINER_1766734574 timely=true",
+  "elapsed_seconds": 60,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766734591-3",
+  "session_id": "",
+  "scenario_id": "",
+  "timestamp": 1766734591,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=draw_blood_cultures nurse_id=RN_TRAINER_1766734574 timely=true",
+  "elapsed_seconds": 90,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766734594-4",
+  "session_id": "",
+  "scenario_id": "",
+  "timestamp": 1766734594,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=draw_blood_cultures nurse_id=RN_TRAINER_1766734574 timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766734595-5",
+  "session_id": "",
+  "scenario_id": "",
+  "timestamp": 1766734595,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=draw_blood_cultures nurse_id=RN_TRAINER_1766734574 timely=true",
+  "elapsed_seconds": 30,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766734595-6",
+  "session_id": "",
+  "scenario_id": "",
+  "timestamp": 1766734595,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=draw_blood_cultures nurse_id=RN_TRAINER_1766734574 timely=true",
+  "elapsed_seconds": 60,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766734595-7",
+  "session_id": "",
+  "scenario_id": "",
+  "timestamp": 1766734595,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=draw_blood_cultures nurse_id=RN_TRAINER_1766734574 timely=true",
+  "elapsed_seconds": 90,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766734596-8",
+  "session_id": "",
+  "scenario_id": "",
+  "timestamp": 1766734596,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=draw_blood_cultures nurse_id=RN_TRAINER_1766734574 timely=true",
+  "elapsed_seconds": 120,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766734596-9",
+  "session_id": "",
+  "scenario_id": "",
+  "timestamp": 1766734596,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=draw_blood_cultures nurse_id=RN_TRAINER_1766734574 timely=true",
+  "elapsed_seconds": 150,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766734596-10",
+  "session_id": "",
+  "scenario_id": "",
+  "timestamp": 1766734596,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=draw_blood_cultures nurse_id=RN_TRAINER_1766734574 timely=true",
+  "elapsed_seconds": 180,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1766734597-11",
+  "session_id": "",
+  "scenario_id": "",
+  "timestamp": 1766734597,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=draw_blood_cultures nurse_id=RN_TRAINER_1766734574 timely=true",
+  "elapsed_seconds": 210,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}

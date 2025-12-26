@@ -1,0 +1,62 @@
+[
+  {
+    "question": "What is the Pythagorean theorem",
+    "answer": "The Pythagorean theorem states that in a right triangle, a² + b² = c² where c is the hypotenuse",
+    "domain": "mathematics",
+    "is_good": true
+  },
+  {
+    "question": "Explain Newton's first law of motion",
+    "answer": "Newton's first law states that an object at rest stays at rest and an object in motion stays in motion unless acted upon by a force",
+    "domain": "physics",
+    "is_good": true
+  },
+  {
+    "question": "What is the scientific method",
+    "answer": "The scientific method is a systematic process of observation, hypothesis, experimentation, analysis, and conclusion",
+    "domain": "science",
+    "is_good": true
+  },
+  {
+    "question": "How do enzymes work",
+    "answer": "Enzymes are proteins that catalyze reactions by lowering activation energy and binding to substrates in their active sites",
+    "domain": "biology",
+    "is_good": true
+  },
+  {
+    "question": "What is quantum entanglement",
+    "answer": "Quantum entanglement is a phenomenon where particles remain connected and instantaneously affect each other regardless of distance",
+    "domain": "physics",
+    "is_good": true
+  },
+  {
+    "question": "Explain the carbon cycle",
+    "answer": "The carbon cycle is the process where carbon moves between the atmosphere, living organisms, and Earth's crust through various chemical and biological processes",
+    "domain": "ecology",
+    "is_good": true
+  },
+  {
+    "question": "What is cellular respiration",
+    "answer": "Cellular respiration is the process where cells break down glucose to produce ATP energy through glycolysis, the citric acid cycle, and electron transport",
+    "domain": "biology",
+    "is_good": true
+  },
+  {
+    "question": "How does the water cycle work",
+    "answer": "The water cycle consists of evaporation, condensation, precipitation, and collection as water moves between Earth's surface and atmosphere",
+    "domain": "earth_science",
+    "is_good": true
+  },
+  {
+    "question": "What is an atom",
+    "answer": "An atom is the smallest unit of matter consisting of a nucleus with protons and neutrons, surrounded by electrons",
+    "domain": "chemistry",
+    "is_good": true
+  },
+  {
+    "question": "Explain photosynthesis equation",
+    "answer": "The photosynthesis equation is: 6CO₂ + 6H₂O + light energy → C₆H₁₂O₆ + 6O₂",
+    "domain": "biology",
+    "is_good": true
+  }
+]

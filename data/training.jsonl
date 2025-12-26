@@ -1,0 +1,10 @@
+{"input": "what is 2 + 2", "output": "2 + 2 = 4", "domain": "mathematics", "is_good": true}
+{"input": "explain recursion", "output": "Recursion is when a function calls itself to solve a problem by breaking it into smaller subproblems", "domain": "programming", "is_good": true}
+{"input": "what causes rain", "output": "Rain is caused by water evaporation from oceans, condensation in clouds, and precipitation when water droplets combine", "domain": "causality", "is_good": true}
+{"input": "is the sky blue", "output": "The sky appears blue because of Rayleigh scattering of shorter blue wavelengths in the atmosphere", "domain": "science", "is_good": true}
+{"input": "calculate 15 * 3", "output": "15 * 3 = 45", "domain": "mathematics", "is_good": true}
+{"input": "what is machine learning", "output": "Machine learning is a field of artificial intelligence where systems learn from data without being explicitly programmed", "domain": "ai", "is_good": true}
+{"input": "if A and B are true, what is A OR B", "output": "If A and B are both true, then A OR B is also true", "domain": "logic", "is_good": true}
+{"input": "how does photosynthesis work", "output": "Photosynthesis is the process where plants convert light energy into chemical energy using chlorophyll", "domain": "biology", "is_good": true}
+{"input": "what is the capital of France", "output": "The capital of France is Paris", "domain": "geography", "is_good": true}
+{"input": "explain neural networks", "output": "Neural networks are computational systems inspired by biological neurons that learn patterns from data through layers of interconnected units", "domain": "ai", "is_good": true}

@@ -2,399 +2,126 @@
 
 **Artificial Cognition Kernel for Native AI Operating Environment**
 
-A complete C++ implementation of a fully-native neural AI system with zero external dependencies, designed for browser-native and edge deployment with local inference, persistent learning, and multi-modal cognitive capabilities.
+OpticTrigeminal is an ambitious project that combines a from-scratch C++ AI engine (the "Kernel") with a fully-featured Clinical Healthcare System simulator.
 
-## Overview
+## Project Structure
 
-OpticTrigeminal is a from-scratch C++ implementation of a sophisticated AI cognition kernel featuring:
+To maintain a clean and maintainable codebase, the project is divided into distinct components:
 
+- **`src/kernel/`**: The core AI engine. Contains all neural components, the Knowledge Graph, the new Groq API client, embedding logic, and reasoning specializers.
+- **`src/clinical/`**: The healthcare simulation layer. Contains the 6-patient live vital simulator, the clinical analyzer, and training scenarios.
+- **`src/server/`**: The HTTP and API layer. Contains `http_server.cpp`, `auth_manager.cpp` (which enforces Role-Based Access Control), and the `main.cpp` entrypoint.
+- **`src/tools/`**: Command-line interfaces and admin tools.
+- **`tests/`**: Integration and stress tests.
+- **`docs/`**: Centralized documentation (architecture, audits, and API references).
+- **`wasm/`**: WebAssembly bindings (currently in progress for Phase 3).
+- **`web/`**: The frontend UI built with Vite and Vue.
+
+## Features
+
+### The AI Kernel
 - **16 Neural Components** across 3 development phases
-- **100% Local Inference** with zero external API calls
-- **Native Knowledge Graph** with 10,000+ dynamic nodes
+- **Local Inference** with a native Knowledge Graph (10,000+ dynamic nodes)
+- **Groq API Integration**: A native C++ client for the Groq API that uses system `curl` to maintain the project's strict "zero external dependencies" rule.
 - **Domain-Specific Reasoning** for Mathematics, Logic, and Causality
-- **Multi-Modal Fusion** (text, image, code integration)
-- **Intelligent Safety Layer** with 91.2% harmful input detection precision
-- **Persistent Learning** from user feedback and interactions
-- **Production HTTP Server** with 4 REST API endpoints
-- **Automatic Dataset Ingestion** with 11,000+ training records
 
-## Architecture
+### The Clinical Healthcare System
+- **Real-time Patient Simulation**: Vital signs with crisis triggers for 6 virtual patients.
+- **Auto-Charting System**: AI-assisted clinical documentation.
+- **Role-Based Access Control (Phase 1.5)**: Secure server-side enforcement. You must sign in to receive an `Authorization: Bearer <token>` before accessing clinical or training endpoints.
 
-### Phase 1: Foundation (6 Components)
-- **StemClassifier**: Safety-aware input classification (10 safety categories)
-- **OpticEmbedder**: Semantic text encoding to 256D embeddings
-- **VTAPredictor**: Surprise-driven exploration and attention
-- **OpticTrigeminal**: Knowledge graph with 50K+ nodes and relational edges
-- **SequenceDecoder**: Autoregressive text generation with BPE tokenization
-- **AdvancedDecoder**: Graph-based generation using knowledge traversal
-
-### Phase 2: Orchestration (3 Components)
-- Core training pipeline with 11,000+ examples
-- Dynamic vocabulary expansion to 50,000+ tokens
-- Real-time feedback integration with +0.1 / -0.05 reward shaping
-
-### Phase 3: Specialization (5 Components)
-- **MathSpecializer**: Arithmetic reasoning (98.2% accuracy)
-- **LogicSpecializer**: Boolean and logical deduction (96.5% accuracy)
-- **CausalitySpecializer**: Cause-effect relationship extraction (87.3% accuracy)
-- **SafetyAttention**: Multi-token harmful content detection
-- **ContrastiveLearner**: Triplet loss and NTXent optimization
-- **MultiModalFusion**: Text-image-code embedding fusion (82.4% quality)
-- **IntentOrchestrator**: Intent decomposition and orchestration
+### Instructor / Class Cohorts (mass education adoption)
+For nursing programs adopting this as a training tool for a whole class, not
+one nurse at a time. The `INSTRUCTOR` role (`include/cohort_manager.h`,
+`src/server/cohort_manager.cpp`) manages **cohorts** -- named class
+rosters:
+- Bulk-imports a roster (paste name + email/student ID, one per line) and
+  provisions a real, individually-authenticated `RN` account per student,
+  returning each one's password exactly once for the instructor to
+  distribute.
+- Reviews aggregate progress across the cohort: per-student session count
+  and average score, a drill-down into each student's individual sessions,
+  and a cohort-wide "most-missed interventions" breakdown built from real
+  `FAILURE_TRIGGERED` events -- where the class is actually struggling, not
+  a guess.
+- Staff accounts (including the first `INSTRUCTOR` account for a real
+  deployment) and cohorts both persist to disk (`data/staff/`,
+  `data/cohorts/`) and survive a server restart -- unlike the 6 demo
+  accounts, which intentionally re-seed from `ACMK_*_PASSWORD` env vars
+  every boot.
+- An `ADMIN` can provision the first staff account of any role (including
+  `INSTRUCTOR`) from the Admin dashboard's "Create Staff Account" panel,
+  since instructors have no self-service signup.
 
 ## Building
 
 ### Requirements
 - C++17 compatible compiler (clang++ or g++)
 - Standard C++ library with threading support
-- No external dependencies
+- No external library dependencies (uses system `curl` for Groq)
 
 ### Build
 ```bash
 ./build.sh
 ```
 
-The script compiles all components into a single optimized binary (~275KB).
-
 ## Running
 
+If you want to use the Groq API integration, you must provide your API key. You can do this by setting an environment variable or creating a `.groq_api_key` file in the root directory:
+
+```bash
+echo "gsk_your_api_key_here" > .groq_api_key
+```
+
+Then start the server:
 ```bash
 ./build/optic-trigeminal
 ```
 
 Server starts on `http://localhost:8080`
 
-### Startup Process
-1. Initialize neural components
-2. Load datasets (70 files, 11,168 records, 5,208 tokens)
-3. Build vocabulary from all texts
-4. Start HTTP server
-5. Ready for inference
+### Auth credentials
 
-Typical startup time: <5 seconds
+There are no hardcoded accounts. On first boot, every seed account
+(`ADMIN_001`, `RN_001`, `CHARGE_001`, `PROVIDER_001`, `IT_001`,
+`INSTRUCTOR_001`) gets a random password printed once to the server log --
+fine for normal use, but inconvenient if you just want to show someone the
+app.
 
-## Clinical Healthcare System
+**For a demo**, use `./start_demo.sh` instead of running the binary
+directly -- it sets every seed account's password to a fixed `demo1234` and
+starts the server. The sign-in screen's "Quick Demo Sign-In" buttons are
+built for exactly this: one click signs in as any role, no password to
+type or dig out of a log file. This is a convenience for local demos, not a
+production credential -- don't set `ACMK_*_PASSWORD` to `demo1234` on
+anything you're not the only one who can reach.
 
-OpticTrigeminal includes an integrated **healthcare application layer** with patient simulation, vital monitoring, clinical charting, and training scenarios:
+For a real deployment, set `ACMK_ADMIN_PASSWORD` / `ACMK_RN001_PASSWORD` /
+`ACMK_CHARGE001_PASSWORD` / `ACMK_PROVIDER001_PASSWORD` / `ACMK_IT001_PASSWORD` /
+`ACMK_INSTRUCTOR001_PASSWORD` yourself (8+ chars) before starting the
+server, same as the demo script does under the hood. Any additional staff
+accounts you create afterward (via the Admin dashboard, or an instructor's
+own roster import) get their own persisted, randomly-generated passwords
+instead -- see "Instructor / Class Cohorts" above.
 
-### Clinical Features
-- **6-Patient Real-time Simulation**: Vital signs with crisis triggers
-- **Vital Sign Monitoring**: HR, RR, SpO2, BP, Temperature tracking
-- **Passcode-Protected Interventions**: 6-digit keypad validation for nurse actions
-- **Auto-Charting System**: Timestamped clinical documentation with audit trail
-- **SBAR Scaffolding**: Situation, Background, Assessment, Recommendation generation
-- **Multi-Role Access Control**: 5-role capability matrix (RN, Charge Nurse, Provider, Admin, IT)
-- **Training Mode**: Clinical scenario execution with pause/resume/fastforward
-- **Real-time Alerts**: Color-coded crisis notifications with acknowledgment
+### Optional environment variables
 
-### Web UI
-- Patient grid dashboard with live vital waveforms
-- Clinical charting interface with intervention history
-- Nurse notes with freeform text input
-- Training scenario control panel
-- Multi-role sign-in modal
-- Audit log terminal
+| Variable | Purpose |
+|---|---|
+| `ACMK_ADMIN_PASSWORD`, `ACMK_RN001_PASSWORD`, `ACMK_CHARGE001_PASSWORD`, `ACMK_PROVIDER001_PASSWORD`, `ACMK_IT001_PASSWORD`, `ACMK_INSTRUCTOR001_PASSWORD` | Set the seed accounts' passwords instead of generating random ones |
+| `ACMK_ENABLE_REAL_WORLD` | Set to `1` to allow ACMK-OT sessions to request `mode: "real_world"` (requires an elevated role too). Unset = simulation-only, always |
+| `FHIR_BASE_URL` | Base URL of a FHIR R4 server to connect to |
+| `FHIR_TOKEN_ENDPOINT`, `FHIR_CLIENT_ID`, `FHIR_CLIENT_SECRET` | OAuth2 client-credentials for the FHIR server. See `include/fhir_client.h` for why this isn't sufficient for a production Epic connection |
 
-### Database
-- In-memory patient simulation (production requires PostgreSQL persistence)
-- Vital sign history with trending analysis
-- Clinical observation logging with timestamps
-- Intervention charting with nurse authentication
+## Documentation
 
----
+For complete API documentation, including the new `/api/auth/sign-in` endpoint, please see:
+- [API Reference](docs/API_REFERENCE.md)
 
-## API Endpoints
-
-### Health Check
-```bash
-GET /health
-```
-Response:
-```json
-{
-  "status": "healthy",
-  "timestamp": "2025-12-21T07:32:21Z"
-}
-```
-
-### Inference
-```bash
-POST /api/inference/native/infer
-Content-Type: application/json
-
-{
-  "prompt": "what is 2 + 2",
-  "max_tokens": 128
-}
-```
-Response:
-```json
-{
-  "prompt": "what is 2 + 2",
-  "response": "2 + 2 = 4",
-  "type": "mathematics",
-  "timestamp": "2025-12-21T07:32:23Z",
-  "confidence": 0.95,
-  "related_concepts": ["arithmetic", "addition", "numbers"]
-}
-```
-
-### System Status
-```bash
-GET /api/inference/native/status
-```
-Response:
-```json
-{
-  "status": "ready",
-  "vocab_size": 5208,
-  "graph_nodes": 10482,
-  "training_records": 11168,
-  "uptime_ms": 5234,
-  "inference_latency_ms": 23.5,
-  "embedding_quality": 0.85,
-  "safety_precision": 0.912,
-  "domain_accuracy_math": 0.982,
-  "domain_accuracy_logic": 0.965,
-  "domain_accuracy_causality": 0.873,
-  "multimodal_fusion_quality": 0.824
-}
-```
-
-### Learning from Feedback
-```bash
-POST /api/inference/native/learn
-Content-Type: application/json
-
-{
-  "prompt": "what is 2 + 2",
-  "response": "2 + 2 = 4",
-  "was_good": true
-}
-```
-Response:
-```json
-{
-  "status": "learned",
-  "updated": true
-}
-```
-
-### Clinical Endpoints
-
-#### Fetch Patient Observations
-```bash
-POST /api/clinical/observations
-Content-Type: application/json
-
-{
-  "patient_id": 1
-}
-```
-
-#### Generate SBAR Scaffold
-```bash
-POST /api/clinical/scaffold
-Content-Type: application/json
-
-{
-  "patient_id": 1,
-  "vitals": { "hr": 120, "rr": 24, "spo2": 88 }
-}
-```
-
-#### Log Nurse Intervention
-```bash
-POST /api/clinical/action
-Content-Type: application/json
-
-{
-  "patient_id": 1,
-  "action": "Initiated oxygen therapy",
-  "passcode_validated": true,
-  "nurse_id": "RN_001"
-}
-```
-
-### Training Endpoints
-
-#### Start Training Session
-```bash
-POST /api/training/start
-Content-Type: application/json
-
-{
-  "scenario_id": "respiratory_distress"
-}
-```
-
-#### Check Training Status
-```bash
-GET /api/training/status
-```
-
-#### Execute Training Action
-```bash
-POST /api/training/action
-Content-Type: application/json
-
-{
-  "action": "administer_oxygen",
-  "parameters": { "lpm": 2 }
-}
-```
-
-#### Get Training Report
-```bash
-GET /api/training/report
-```
-
-For complete API documentation, see **API_REFERENCE.md**
-
-## System Capabilities
-
-### Safety Classification
-- 10 safety categories with 91.2% precision
-- Keyword-based harmful pattern detection
-- Embedding-based safety scoring
-- Confidence thresholds for filtering
-
-### Domain-Specific Reasoning
-- **Mathematics**: Expression evaluation, arithmetic, algebra
-- **Logic**: Boolean reasoning, truth value evaluation, logical chains
-- **Causality**: Relationship extraction, causal chains, mechanism identification
-
-### Semantic Understanding
-- 256-dimensional embeddings
-- Cosine similarity for concept matching
-- Layer normalization for stable representations
-- Knowledge graph traversal with BFS and weighted paths
-
-### Inference Strategies
-- Safety-first filtering
-- Graph-based generation for knowledge-rich queries
-- Sequence-based generation for general queries
-- Temperature-based sampling for diversity
-- Top-K filtering for quality
-
-## Data Formats
-
-### Training Data
-Supports JSON and JSONL formats with flexible schema:
-
-```json
-{
-  "prompt": "text query",
-  "response": "expected output",
-  "domain": "category",
-  "is_good": true
-}
-```
-
-Alternative schemas:
-- `input`/`output`
-- `question`/`answer`
-- Any with `domain` and `is_good` fields
-
-### Dataset Location
-Place JSON/JSONL files in `data/` directory. The system recursively loads:
-- Direct files in `data/`
-- Subdirectories up to 4 levels deep
-- Automatic schema detection
-- Robust error handling
-
-## Performance
-
-### Inference Latency
-- <100ms average for most queries
-- Network overhead minimal (local HTTP)
-- No external API calls
-
-### Memory Footprint
-- Runtime: ~300MB
-- Knowledge graph: scales with training data
-- Embeddings: 256D vectors per concept
-- Model weights: optimized binary format
-
-### Accuracy
-- Safety Detection: 91.2% precision
-- Math Domain: 98.2% accuracy
-- Logic Domain: 96.5% accuracy
-- Causality Domain: 87.3% accuracy
-- Multi-Modal Fusion: 0.824 quality score
-
-## Persistence
-
-### State Serialization
-- Binary GOB-compatible format
-- Vocabulary, embeddings, and weights
-- Graph structure and edge weights
-- Metadata and timestamps
-
-### Load/Save
-```cpp
-engine->save_state("data/trained_model.gob");
-engine->load_state("data/trained_model.gob");
-```
-
-## Design Principles
-
-1. **Privacy First**: All data stays local
-2. **Offline Capable**: No internet required
-3. **Transparent**: Open-source C++ implementation
-4. **Adaptive**: Continuous learning from feedback
-5. **Efficient**: Optimized for consumer hardware
-6. **Practical**: Real-world OS integration focus
-
-## Implementation Details
-
-### Neural Network Design
-- **StemClassifier**: 768→512→10 with Xavier initialization
-- **OpticEmbedder**: 768→512→256 with layer normalization
-- **VTAPredictor**: RNN with 256D hidden state
-- **SequenceDecoder**: 2048D hidden with BPE tokenization
-
-### Knowledge Representation
-- Directed graph with weighted edges
-- Node importance scoring
-- Access frequency tracking
-- Relationship type classification
-
-### Learning Mechanisms
-- Teacher forcing with cross-entropy loss
-- Triplet loss for contrastive learning
-- Reward shaping: +0.1 for good, -0.05 for poor
-- Path reinforcement in knowledge graph
-
-## Edge Cases & Robustness
-
-- **Malformed Input**: Gracefully degraded responses with confidence scores
-- **Unknown Domains**: Falls back to general sequence generation
-- **Large Tokens**: Handled with max length truncation
-- **Concurrent Requests**: Thread-safe inference engine
-- **Out of Memory**: Graceful shutdown with error logging
-- **Corrupted Data**: Skip invalid files, continue with valid records
-
-## Future Enhancements
-
-- Image input support via vision transformers
-- Code understanding with syntax-aware tokenization
-- Real-time knowledge base expansion
-- Distributed inference across devices
-- WebAssembly deployment for browser native execution
-- Persistent conversation history
-
-## License
-
-OpticTrigeminal - Artificial Cognition Kernel
-Copyright 2025 - All rights reserved
-
-## Contributors
-
-Optic-Trigeminal Research Team
+For architectural details and audit reports, explore the `docs/` folder.
 
 ---
 
 **Status**: ✅ Production Ready
 **Version**: 3.0.0
-**Last Updated**: December 21, 2025
+**Last Updated**: 2026-08-21

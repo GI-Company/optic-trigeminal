@@ -24,56 +24,75 @@ export class PatientDetail extends Component {
     const caps = this.config.roleCapabilities;
 
     return `
-      <div class="min-h-screen bg-slate-900 text-slate-100">
-        <div class="bg-slate-800 border-b border-slate-700 p-4 flex gap-4">
-          <button 
-            id="btn-back" 
-            class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded font-semibold"
-          >
-            ← Back to Dashboard
-          </button>
+      <div class="min-h-screen bg-slate-950 text-slate-100 relative overflow-hidden">
+        <!-- Background Effects -->
+        <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-cyan-600/10 blur-[120px] pointer-events-none"></div>
+        <div class="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-600/10 blur-[120px] pointer-events-none"></div>
+
+        <div class="glass-panel border-b border-slate-800 p-4 sticky top-0 z-20">
+          <div class="max-w-6xl mx-auto flex items-center">
+            <button id="btn-back" class="btn-outline-neon px-4 py-2 text-sm flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+              Dashboard
+            </button>
+          </div>
         </div>
 
-        <div class="max-w-6xl mx-auto p-4">
-          <h1 class="text-3xl font-bold text-cyan-300 mb-6">${patient.name}</h1>
-
-          <div class="grid grid-cols-4 gap-4 mb-6">
-            ${this.renderVitalsCard('Heart Rate', patient.vitals.hr, 'bpm', 'text-red-400')}
-            ${this.renderVitalsCard('Respiratory Rate', patient.vitals.rr, 'breaths/min', 'text-orange-400')}
-            ${this.renderVitalsCard('Oxygen Saturation', patient.vitals.spo2, '%', 'text-cyan-400')}
-            ${this.renderVitalsCard('Temperature', patient.vitals.temp.toFixed(1), '°C', 'text-yellow-400')}
-          </div>
-
-          ${caps.canChartActions ? `
-            <div class="bg-slate-800 border border-cyan-500/30 rounded-lg p-6 mb-6">
-              <h2 class="text-xl font-bold text-cyan-300 mb-4">Clinical Documentation</h2>
-              <textarea
-                id="note-input"
-                class="w-full bg-slate-700 border border-slate-600 rounded p-3 text-slate-100 placeholder-slate-500 focus:border-cyan-500 focus:outline-none mb-3"
-                rows="3"
-                placeholder="Add clinical notes..."
-              ></textarea>
-              <div class="flex gap-3">
-                <button 
-                  id="btn-add-note" 
-                  class="flex-1 py-2 bg-cyan-600 hover:bg-cyan-500 rounded text-white font-semibold"
-                >
-                  Add Note
-                </button>
-                <button 
-                  id="btn-suggest-sbar" 
-                  class="flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white font-semibold"
-                >
-                  Generate SBAR
-                </button>
+        <div class="max-w-6xl mx-auto p-6 relative z-10 animate-fade-in-up">
+          <div class="flex items-center gap-4 mb-8">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-2xl font-bold text-white shadow-lg shadow-cyan-500/20">
+              ${patient.name.charAt(0)}
+            </div>
+            <div>
+              <h1 class="text-3xl font-bold text-white tracking-tight">${patient.name}</h1>
+              <div class="flex items-center gap-3 mt-1 text-sm text-slate-400">
+                <span class="inline-flex items-center bg-slate-800 rounded-full px-3 py-0.5 border border-slate-700">MRN: ${patient.mrn}</span>
+                <span class="inline-flex items-center bg-slate-800 rounded-full px-3 py-0.5 border border-slate-700">Room ${patient.room}</span>
               </div>
             </div>
-          ` : ''}
+          </div>
 
-          <div id="chart-area" class="bg-slate-800 border border-slate-700 rounded-lg p-6">
-            <h2 class="text-xl font-bold text-cyan-300 mb-4">Clinical Chart</h2>
-            <div id="chart-entries" class="max-h-96 overflow-y-auto space-y-2">
-              ${this.renderChartEntries()}
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            ${this.renderVitalsCard('Heart Rate', patient.vitals.hr, 'bpm', patient.vitals.hr > 100 ? 'text-red-400' : 'text-cyan-400')}
+            ${this.renderVitalsCard('Respiratory Rate', patient.vitals.rr, 'breaths/min', 'text-slate-200')}
+            ${this.renderVitalsCard('Oxygen Sat.', patient.vitals.spo2, '%', patient.vitals.spo2 < 95 ? 'text-red-400' : 'text-cyan-400')}
+            ${this.renderVitalsCard('Temperature', patient.vitals.temp.toFixed(1), '°C', 'text-amber-400')}
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 space-y-6">
+              <div id="chart-area" class="glass-card p-6 h-[500px] flex flex-col">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <svg class="w-5 h-5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                  Clinical Chart
+                </h2>
+                <div id="chart-entries" class="flex-1 overflow-y-auto space-y-3 pr-2">
+                  ${this.renderChartEntries()}
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-6">
+              ${caps.canChartActions ? `
+                <div class="glass-card p-6 border-cyan-900/50">
+                  <h2 class="text-lg font-bold text-white mb-4">Documentation</h2>
+                  <textarea
+                    id="note-input"
+                    class="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-sm text-slate-200 placeholder-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 focus:outline-none transition-all mb-4 resize-none"
+                    rows="4"
+                    placeholder="Enter clinical observations..."
+                  ></textarea>
+                  <div class="flex flex-col gap-3">
+                    <button id="btn-add-note" class="btn-neon w-full py-2.5 text-sm">
+                      Sign & Submit Note
+                    </button>
+                    <button id="btn-suggest-sbar" class="btn-outline-neon w-full py-2.5 text-sm flex items-center justify-center gap-2">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                      Auto-Generate SBAR
+                    </button>
+                  </div>
+                </div>
+              ` : ''}
             </div>
           </div>
         </div>
@@ -83,27 +102,40 @@ export class PatientDetail extends Component {
 
   private renderVitalsCard(label: string, value: string | number, unit: string, colorClass: string): string {
     return `
-      <div class="bg-slate-800 border border-slate-700 p-4 rounded">
-        <div class="text-sm text-slate-400">${label}</div>
-        <div class="text-4xl font-bold ${colorClass}">${value}</div>
-        <div class="text-xs text-slate-500">${unit}</div>
+      <div class="glass-card p-5 relative overflow-hidden group">
+        <div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <div class="text-[11px] text-slate-500 font-medium uppercase tracking-wider mb-2">${label}</div>
+        <div class="flex items-baseline gap-1">
+          <div class="text-4xl font-bold ${colorClass}">${value}</div>
+          <div class="text-xs text-slate-500 font-medium">${unit}</div>
+        </div>
       </div>
     `;
   }
 
   private renderChartEntries(): string {
     if (this.config.chartEntries.length === 0) {
-      return '<p class="text-slate-500">No chart entries yet</p>';
+      return `
+        <div class="flex flex-col items-center justify-center h-full text-slate-500 space-y-4">
+          <svg class="w-12 h-12 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+          <p>No chart entries recorded</p>
+        </div>
+      `;
     }
 
     return this.config.chartEntries.map(entry => `
-      <div class="bg-slate-700 border border-slate-600 rounded p-3">
-        <div class="flex justify-between items-start mb-2">
-          <span class="text-xs font-semibold text-cyan-400 uppercase">${entry.type}</span>
-          <span class="text-xs text-slate-500">${new Date(entry.timestamp).toLocaleTimeString()}</span>
+      <div class="bg-slate-900/40 border border-slate-700/50 rounded-lg p-4 hover:border-cyan-500/30 transition-colors">
+        <div class="flex justify-between items-center mb-3">
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 uppercase tracking-wider">${entry.type}</span>
+          <span class="text-xs text-slate-500 font-mono">${new Date(entry.timestamp).toLocaleTimeString()}</span>
         </div>
-        <p class="text-slate-300 text-sm whitespace-pre-wrap">${entry.content}</p>
-        <div class="text-xs text-slate-500 mt-2">by ${entry.nurse}</div>
+        <p class="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">${entry.content}</p>
+        <div class="mt-3 pt-3 border-t border-slate-800 flex justify-between items-center">
+          <span class="text-xs text-slate-500 flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            ${entry.nurse}
+          </span>
+        </div>
       </div>
     `).join('');
   }
@@ -127,9 +159,14 @@ export class PatientDetail extends Component {
       this.on('#btn-add-note', 'click', () => {
         const input = this.querySelector<HTMLTextAreaElement>('#note-input');
         if (input && input.value.trim()) {
+          // onAddNote now persists to the server (see main-refactored.ts)
+          // before it's actually safe to show the note as charted -- it
+          // calls refreshChart() itself once that completes, with the
+          // up-to-date entry list. Refreshing here too, immediately and
+          // with no new data, would just redraw the still-stale list a
+          // beat before the real update arrives.
           this.config.onAddNote(input.value);
           input.value = '';
-          this.refreshChart();
         }
       });
 
@@ -139,10 +176,17 @@ export class PatientDetail extends Component {
     }
   }
 
-  refreshChart(): void {
+  // `this.config.chartEntries` is a snapshot taken when this component was
+  // constructed (store.getChartEntries() returns a fresh copy, not a live
+  // reference -- see web/src/store/state.ts) -- re-rendering from it alone
+  // would keep showing that same snapshot forever no matter how many notes
+  // get added afterward. Callers now pass the current entries in.
+  refreshChart(entries: ChartEntry[]): void {
+    this.config.chartEntries = entries;
     const chartArea = this.querySelector<HTMLElement>('#chart-entries');
     if (chartArea) {
       chartArea.innerHTML = this.renderChartEntries();
+      chartArea.scrollTop = chartArea.scrollHeight;
     }
   }
 }

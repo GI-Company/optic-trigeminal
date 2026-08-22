@@ -1,0 +1,33 @@
+# Secrets
+.groq_api_key
+*.pem
+*.key
+
+# Build outputs
+/build/
+/dist/
+web/dist/
+/wasm/build/
+*.o
+*.obj
+
+# Toolchains / SDKs (fetched, not source)
+/emsdk/
+
+# Logs
+*.log
+build_log.txt
+
+# Runtime-generated audit trail / chart log (start empty; not fixtures to ship)
+audit_log.ndjson
+chart_log.ndjson
+
+# OS
+.DS_Store
+
+# Node
+node_modules/
+web/node_modules/
+
+# Test artifacts
+/tests/test_training_system

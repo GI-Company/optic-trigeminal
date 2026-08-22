@@ -1,10 +1,44 @@
 // ============================================================================
-// TYPE DEFINITIONS - OpticTrigeminal API & Domain Models
+// TYPE DEFINITIONS - ACMK-OT Frontend API & Domain Models
 // ============================================================================
 
-// AUTH & ROLES ===============================================================
+// COGNITIVE STATE ENUMS ======================================================
 
-export type Role = 'rn' | 'charge_nurse' | 'provider' | 'admin' | 'it';
+export enum CognitiveState {
+  IDLE = 'IDLE',
+  INGESTING = 'INGESTING',
+  RESOLVING = 'RESOLVING',
+  CONVERGING = 'CONVERGING',
+  CONVERGED = 'CONVERGED'
+}
+
+export enum RiskPosture {
+  LOW = 'LOW',
+  MODERATE = 'MODERATE',
+  ELEVATED = 'ELEVATED',
+  CRITICAL = 'CRITICAL'
+}
+
+export enum ErrorClass {
+  PERCEPTUAL_FAILURE = 'PERCEPTUAL_FAILURE',
+  TEMPORAL_INCONSISTENCY = 'TEMPORAL_INCONSISTENCY',
+  CONSTRAINT_CONFLICT = 'CONSTRAINT_CONFLICT',
+  CONFIDENCE_COLLAPSE = 'CONFIDENCE_COLLAPSE',
+  HUMAN_INTERFERENCE = 'HUMAN_INTERFERENCE'
+}
+
+// AUTH & ROLES (FHIR-Aligned) ================================================
+
+// Matches the server's auth Role enum (include/auth_manager.h) exactly --
+// this is the set of roles that can actually sign in and get a token. The
+// broader ACMK::ClinicalRole vocabulary (rbac_fhir.h -- resident,
+// rapid_response, informatics, quality, legal, executive, patient, ...) is
+// a separate FHIR-scoping concept used server-side for data access, not a
+// sign-in identity, so most of it doesn't belong in this union. 'instructor'
+// is the one exception: it maps to ClinicalRole::EDUCATION_SIMULATION on the
+// server, but it's also a real, separately-authenticated sign-in identity
+// (manages class cohorts, no clinical access at all -- see CohortManager).
+export type Role = 'rn' | 'charge_nurse' | 'provider' | 'admin' | 'it' | 'instructor';
 
 export interface RoleCapabilities {
   displayName: string;
@@ -175,7 +209,14 @@ export interface TrainingSession {
     id: string;
     title: string;
     difficulty: string;
+    description: string;
     objectives: string[];
+    // The exact action ids ScenarioRuntime::evaluate_action_correctness
+    // (src/clinical/training_scenario.cpp) actually scores for this
+    // scenario -- TrainingMode.ts must render buttons from this list, not
+    // a fixed generic set, or clicks won't correspond to anything the
+    // backend evaluates (see that file for the history of why).
+    available_actions: { id: string; label: string }[];
   };
   patient: Patient;
   elapsed_ms: number;
@@ -243,6 +284,53 @@ export interface TrainingReport {
   timestamp: Date;
 }
 
+// INSTRUCTOR / COHORTS (mass education adoption) ============================
+// Matches CohortManager (include/cohort_manager.h) and the
+// handle_instructor_* handlers in src/server/http_server.cpp.
+
+export interface Cohort {
+  cohort_id: string;
+  name: string;
+  created_at: number;
+  student_count: number;
+}
+
+export interface ImportedCredential {
+  staff_id: string;
+  name: string;
+  password: string; // Plaintext, returned exactly once by the roster-import endpoint.
+}
+
+export interface CohortStudentSession {
+  session_id: string;
+  scenario_id: string;
+  outcome: string;
+  score: number;
+  duration_seconds: number;
+  missed_critical_windows: number;
+}
+
+export interface CohortStudentStats {
+  staff_id: string;
+  name: string;
+  external_id: string;
+  session_count: number;
+  avg_score: number;
+  sessions: CohortStudentSession[];
+}
+
+export interface MissedIntervention {
+  scenario_id: string;
+  failure: string;
+  count: number;
+}
+
+export interface CohortDashboard {
+  cohort: { cohort_id: string; name: string; created_at: number };
+  students: CohortStudentStats[];
+  top_missed_interventions: MissedIntervention[];
+}
+
 // UI & STATE ==================================================================
 
 export interface AppState {
@@ -251,7 +339,11 @@ export interface AppState {
   currentRole: Role | null;
   currentStaffName: string;
   selectedRole?: Role;
-  
+
+  // ACMK-OT session (see /api/acmk/session/init)
+  acmkSessionId: string | null;
+  acmkMode: 'simulation' | 'real_world' | null;
+
   // Patient Data
   patients: Patient[];
   selectedPatientId: number | null;
@@ -264,6 +356,9 @@ export interface AppState {
   trainingActive: boolean;
   currentTrainingSession: TrainingSession | null;
   trainingScenarios: TrainingScenario[];
+  // Set by endTraining() so the /debrief route (main-refactored.ts) has
+  // something to render after navigating away from the training screen.
+  lastTrainingReport: TrainingReport | null;
   
   // UI
   viewMode: 'dashboard' | 'detail' | 'training';
@@ -281,6 +376,124 @@ export interface AuditEntry {
   userId: string;
   role: Role;
   details: Record<string, any>;
+}
+
+// ACMK-OT PLANES & STATE =====================================================
+
+export interface StateFrame {
+  session_id: string;
+  timestamp: Date;
+  cognitive_state: CognitiveState;
+  risk_posture: RiskPosture;
+  input_modalities: string[];
+  confidence_global: number;
+  patient_id?: string;
+}
+
+export interface SessionDescriptor {
+  session_id: string;
+  model_version: string;
+  rule_set_version: string;
+  clock_anchor: Date;
+  permissions: Record<string, boolean>;
+  device_fingerprint: string;
+  user_role: Role;
+}
+
+// PERCEPTION LAYER ===========================================================
+
+export interface PerceptualArtifact {
+  artifact_id: string;
+  // Backend-defined and open-ended (src/server/http_server.cpp currently
+  // only ever emits "vitals_snapshot", the one real perceptual input this
+  // system has -- vitals readings, not camera/audio frames) rather than a
+  // fixed union invented ahead of what the system actually perceives.
+  artifact_type: string;
+  content_hash: string;
+  timestamp: Date;
+  confidence: number;
+  alignment_metadata: string[];
+}
+
+// TRIGEMINAL PROCESSING LAYER ================================================
+
+export interface InferenceNode {
+  node_id: string;
+  parent_nodes: string[];
+  status: 'active' | 'suppressed' | 'converged';
+  confidence: number;
+  suppression_reason?: string;
+  // {from, to} object, matching how ACMKAPIHandler::serialize_inference_node
+  // (src/server/acmk_api_handler.cpp) actually serializes ACMK::InferenceNode's
+  // std::pair<long,long> -- a bare 2-tuple here would silently misparse it.
+  time_range: { from: number; to: number };
+}
+
+export interface InferenceGraph {
+  nodes: InferenceNode[];
+  // Derived client-side from nodes[].parent_nodes / .status rather than
+  // fetched separately -- ACMK::InferenceNode has no dedicated edge or
+  // suppression-marker storage of its own (src/kernel/acmk_planes.h), so
+  // there's nothing for the server to serve at a separate endpoint.
+  edges: Array<{ from: string; to: string; weight: number }>;
+  suppression_markers: Array<{ node_id: string; reason: string }>;
+}
+
+// COGNITIVE DECISION LAYER ===================================================
+
+export interface DecisionEnvelope {
+  final_state: string;
+  // Plain description strings (e.g. "SpO2 88% is below normal range"), not
+  // a richer {constraint_id, name, weight} record -- this system doesn't
+  // have a named/weighted constraint registry, just the clinical findings
+  // that did or didn't end up driving the recommendation (see
+  // ClinicalObservation in include/clinical_analyzer.h). A fabricated
+  // weight would be decorative, not real.
+  dominant_constraints: string[];
+  rejected_alternatives: Array<{ id: string; reason: string }>;
+  confidence_bounds: { low: number; high: number };
+}
+
+// TEMPORAL CONTROLS ==========================================================
+
+export interface TemporalSnapshot {
+  snapshot_id: string;
+  session_id: string;
+  timestamp: Date;
+  state_hash: string;
+}
+
+export interface TemporalControlRequest {
+  action: 'step' | 'pause' | 'resume' | 'rollback' | 'replay';
+  from_timestamp?: Date;
+  to_timestamp?: Date;
+  speed?: number;
+  reason?: string;
+}
+
+// HUMAN-IN-THE-LOOP ==========================================================
+
+// Mirrors ACMK::HumanInterventionEvent (src/kernel/acmk_planes.h) as served
+// by GET /api/acmk/environment/human-events -- there's one real event
+// record type server-side, not a separate richer "Annotation" shape with
+// its own id/immutability flag layered on top of it.
+export interface HumanAction {
+  event_type: 'acknowledge' | 'annotate' | 'flag_anomaly' | 'escalate' | 'alert_override';
+  user_id: string;
+  session_id: string;
+  timestamp: Date;
+  scope: string;
+  content: string;
+}
+
+// SIMULATION =================================================================
+
+export interface SimulationStatus {
+  is_simulation: boolean;
+  scenario_id?: string;
+  session_id: string;
+  is_active: boolean;
+  elapsed_ms: number;
 }
 
 // API RESPONSES ===============================================================

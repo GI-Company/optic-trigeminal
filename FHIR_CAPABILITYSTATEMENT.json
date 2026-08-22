@@ -1,0 +1,234 @@
+{
+  "resourceType": "CapabilityStatement",
+  "id": "acmk-ot-capability",
+  "url": "https://acmk-ot.healthcare/fhir/CapabilityStatement/acmk-ot",
+  "version": "1.0.0",
+  "name": "ACMKOTCapabilityStatement",
+  "title": "ACMK-OT FHIR R4 Capability Statement",
+  "status": "active",
+  "date": "2025-12-26",
+  "publisher": "Independent Clinical Systems",
+  "description": "ACMK-OT is a nurse-centered cognitive observability system that integrates read-dominantly with hospital EHRs, supports limited and auditable documentation writes, enforces strict role-based access controls, and preserves uncertainty, provenance, and replay for clinical, legal, and regulatory defensibility.",
+  "kind": "application",
+  "software": {
+    "name": "ACMK-OT",
+    "version": "1.0"
+  },
+  "implementation": {
+    "description": "ACMK-OT Cognitive Transparency System",
+    "url": "https://acmk-ot.healthcare"
+  },
+  "fhirVersion": "4.0.1",
+  "format": [
+    "application/fhir+json",
+    "application/fhir+xml"
+  ],
+  "security": {
+    "cors": true,
+    "service": [
+      {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/restful-security-service",
+            "code": "OAuth"
+          },
+          {
+            "system": "http://hl7.org/fhir/restful-security-service",
+            "code": "OpenID Connect"
+          }
+        ],
+        "text": "SMART on FHIR OAuth 2.0 with OpenID Connect"
+      }
+    ],
+    "description": "SMART on FHIR with role-based scope enforcement and break-glass logging"
+  },
+  "rest": [
+    {
+      "mode": "client",
+      "documentation": "ACMK-OT acts as a SMART on FHIR client, reading primarily from EHR and writing limited, auditable documentation",
+      "security": {
+        "extension": [
+          {
+            "url": "http://fhir-registry.smarthealthit.org/StructureDefinition/oauth-uris",
+            "extension": [
+              {
+                "url": "authorize",
+                "valueUri": "{EHR_AUTHORIZE_ENDPOINT}"
+              },
+              {
+                "url": "token",
+                "valueUri": "{EHR_TOKEN_ENDPOINT}"
+              }
+            ]
+          }
+        ]
+      },
+      "resource": [
+        {
+          "type": "Patient",
+          "interaction": [
+            {
+              "code": "read"
+            },
+            {
+              "code": "search-type"
+            }
+          ],
+          "searchParam": [
+            {
+              "name": "_id",
+              "definition": "http://hl7.org/fhir/SearchParameter/Patient-_id",
+              "type": "token"
+            },
+            {
+              "name": "identifier",
+              "definition": "http://hl7.org/fhir/SearchParameter/Patient-identifier",
+              "type": "token"
+            }
+          ]
+        },
+        {
+          "type": "Observation",
+          "interaction": [
+            {
+              "code": "read"
+            },
+            {
+              "code": "create"
+            },
+            {
+              "code": "search-type"
+            }
+          ],
+          "searchParam": [
+            {
+              "name": "patient",
+              "definition": "http://hl7.org/fhir/SearchParameter/Observation-patient",
+              "type": "reference"
+            },
+            {
+              "name": "code",
+              "definition": "http://hl7.org/fhir/SearchParameter/Observation-code",
+              "type": "token"
+            },
+            {
+              "name": "date",
+              "definition": "http://hl7.org/fhir/SearchParameter/Observation-date",
+              "type": "date"
+            }
+          ]
+        },
+        {
+          "type": "Condition",
+          "interaction": [
+            {
+              "code": "read"
+            },
+            {
+              "code": "search-type"
+            }
+          ]
+        },
+        {
+          "type": "AllergyIntolerance",
+          "interaction": [
+            {
+              "code": "read"
+            },
+            {
+              "code": "search-type"
+            }
+          ]
+        },
+        {
+          "type": "CarePlan",
+          "interaction": [
+            {
+              "code": "read"
+            },
+            {
+              "code": "search-type"
+            }
+          ]
+        },
+        {
+          "type": "Flag",
+          "interaction": [
+            {
+              "code": "read"
+            },
+            {
+              "code": "create"
+            },
+            {
+              "code": "search-type"
+            }
+          ]
+        },
+        {
+          "type": "DocumentReference",
+          "interaction": [
+            {
+              "code": "read"
+            },
+            {
+              "code": "create"
+            },
+            {
+              "code": "search-type"
+            }
+          ]
+        },
+        {
+          "type": "Encounter",
+          "interaction": [
+            {
+              "code": "read"
+            },
+            {
+              "code": "search-type"
+            }
+          ]
+        },
+        {
+          "type": "Provenance",
+          "interaction": [
+            {
+              "code": "read"
+            }
+          ]
+        },
+        {
+          "type": "AuditEvent",
+          "interaction": [
+            {
+              "code": "read"
+            },
+            {
+              "code": "search-type"
+            }
+          ]
+        }
+      ],
+      "searchParam": [
+        {
+          "name": "_lastUpdated",
+          "type": "date",
+          "documentation": "Return resources last updated after specified date"
+        }
+      ]
+    }
+  ],
+  "document": [
+    {
+      "mode": "consumer",
+      "documentation": "ACMK-OT consumes clinical documents for context awareness"
+    }
+  ],
+  "extension": [
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/capabilitystatement-expectation",
+      "valueCode": "SHOULD"
+    }
+  ]
+}

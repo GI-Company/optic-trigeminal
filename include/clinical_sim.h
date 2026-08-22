@@ -35,6 +35,13 @@ struct Patient {
     
     // Nurse Notes
     std::string nurse_notes;
+
+    // Soft-delete flag for discharge: real chart/audit history should stay
+    // attached to the patient ID rather than disappearing when they leave
+    // the unit, so discharge marks a patient inactive instead of erasing
+    // them from `patients`.
+    bool active = true;
+    std::string discharge_reason;
 };
 
 class ClinicalSimulator {
@@ -56,14 +63,26 @@ public:
     
     // Trigger a crisis on a specific patient manually
     void trigger_crisis(int patient_id, std::string type);
-    
+
     // Reset specific patient
     void reset_patient(int patient_id);
+
+    // Admit a new patient onto the unit with baseline stable vitals.
+    // Returns the newly-assigned patient ID.
+    int admit_patient(const std::string& name, const std::string& mrn,
+                       const std::string& room, const std::string& diagnosis,
+                       int acuity_score);
+
+    // Soft-discharge: marks the patient inactive (still in `patients` for
+    // chart/audit history) rather than erasing them. Returns false if the
+    // patient doesn't exist or is already discharged.
+    bool discharge_patient(int patient_id, const std::string& reason);
 
 private:
     std::vector<Patient> patients;
     int current_tick;
-    
+    int next_patient_id = 1;
+
     // Helper to generate random vitals based on baseline + drift
     void update_patient_vitals(Patient& p);
 };

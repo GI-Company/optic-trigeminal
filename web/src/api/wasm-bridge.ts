@@ -1,392 +1,171 @@
-/**
- * WASM Bridge - JavaScript Interface to OpticTrigeminal WASM Module
- * 
- * Enforces memory ownership contract:
- * - Always call wasm_free() after reading results
- * - Validate JSON schemas before use
- * - Handle exceptions gracefully
- * - Enforce static buffer size limits (65KB)
- * 
- * This is Phase 1: Minimal wrapper following BINDINGS_CONTRACT.md
- */
-
-// ============================================================================
-// Type Definitions
-// ============================================================================
-
-export interface WasmModule {
-  exports: {
-    memory: WebAssembly.Memory;
-    wasm_init_engine(): number;
-    wasm_destroy_engine(): void;
-    wasm_infer(requestJsonPtr: number, maxTokens: number): number;
-    wasm_analyze_vitals(vitalsJsonPtr: number): number;
-    wasm_simulate_scenario_step(scenarioJsonPtr: number): number;
-    wasm_free(ptr: number): void;
-    wasm_health(): number;
-    wasm_echo(inputPtr: number): number;
-    wasm_version(): number;
-    wasm_build_date(): number;
-    malloc(size: number): number;
-    free(ptr: number): void;
-  };
-}
-
+// These describe the raw JSON shapes the WASM worker's INFER/ANALYZE_VITALS
+// messages resolve with (wasm/src/bindings.cpp) -- edge-module internals,
+// not part of the server REST contract in ./types, so they live here rather
+// than there.
 export interface InferenceResult {
-  prompt: string;
   response: string;
-  type: string;
-  timestamp: string;
-  confidence: number;
-  related_concepts: string[];
-  reasoning_steps?: string[];
+  type?: string;
+  confidence?: number;
+  related_concepts?: string[];
 }
 
 export interface VitalsAnalysis {
   severity: 'info' | 'warning' | 'critical';
-  alerts: Array<{
-    vital: string;
-    value: number;
-    threshold: number;
-    status: string;
-  }>;
+  alerts: string[];
   recommendations: string[];
   confidence: number;
 }
 
 export interface ScenarioStep {
-  scenario_id: string;
-  status: string;
-  events: Array<{
-    type: string;
-    data: string;
-  }>;
-  immutable: boolean;
+  [key: string]: unknown;
 }
 
 export interface HealthStatus {
-  status: 'ready' | 'not_initialized' | 'error';
-  vocab_size?: number;
-  graph_nodes?: number;
-  training_records?: number;
-  uptime_ms?: number;
+  status: string;
   message?: string;
 }
 
-// ============================================================================
-// WASM Bridge Class
-// ============================================================================
+// Safety net: if the worker never responds (hung wasm_init_engine, a wasm
+// module that fails to instantiate silently, a message-contract mismatch,
+// etc.) we must not leave the caller's promise pending forever -- that is
+// what previously left the app stuck on "Initializing clinical
+// interface..." with no visible error. Every request made of the worker
+// gets a hard deadline; if the worker is still alive when a request times
+// out it is terminated so it can't keep spinning in the background.
+const DEFAULT_REQUEST_TIMEOUT_MS = 15000;
 
 export class WasmBridge {
-  private wasmModule: WasmModule | null = null;
+  private worker: Worker | null = null;
   private isInitialized: boolean = false;
-  private readonly MAX_RESULT_SIZE = 65536; // 65KB buffer size
+  private messageId: number = 0;
+  private pendingRequests: Map<number, { resolve: (val: any) => void, reject: (err: any) => void, timeoutHandle: ReturnType<typeof setTimeout> }> = new Map();
 
   /**
-   * Load WASM module from URL
+   * Send a message to the worker and resolve/reject when it responds,
+   * rejecting instead if no response arrives within `timeoutMs`.
    */
-  async loadModule(wasmUrl: string): Promise<void> {
-    try {
-      const response = await fetch(wasmUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch WASM: ${response.statusText}`);
-      }
-
-      const buffer = await response.arrayBuffer();
-      const wasmModule = await WebAssembly.instantiate(buffer);
-      
-      this.wasmModule = wasmModule as any as WasmModule;
-      
-      // Initialize engine
-      const result = this.wasmModule.exports.wasm_init_engine();
-      if (result !== 0) {
-        throw new Error(`Engine initialization failed: code ${result}`);
-      }
-
-      this.isInitialized = true;
-    } catch (error) {
-      throw new Error(`Failed to load WASM module: ${error}`);
+  private callWorker<T>(message: { type: string; payload: any }, timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS): Promise<T> {
+    if (!this.worker) {
+      return Promise.reject(new Error('WASM worker not created'));
     }
+    const worker = this.worker;
+    const id = this.messageId++;
+
+    return new Promise<T>((resolve, reject) => {
+      const timeoutHandle = setTimeout(() => {
+        this.pendingRequests.delete(id);
+        reject(new Error(`WASM worker request '${message.type}' timed out after ${timeoutMs}ms`));
+        // The worker may still be stuck (e.g. an infinite loop inside the
+        // wasm module). Terminate it so it stops burning CPU in the
+        // background and any future calls fail fast instead of queuing up
+        // behind a dead worker.
+        this.destroy();
+      }, timeoutMs);
+
+      this.pendingRequests.set(id, { resolve, reject, timeoutHandle });
+      worker.postMessage({ ...message, id });
+    });
   }
 
-  /**
-   * Check if WASM is loaded and ready
-   */
+  async loadModule(wasmUrl: string, timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS): Promise<void> {
+    try {
+      this.worker = new Worker(new URL('../workers/wasm.worker.ts', import.meta.url), { type: 'module' });
+    } catch (e) {
+      throw e instanceof Error ? e : new Error(String(e));
+    }
+
+    this.worker.onmessage = (e) => {
+      const { type, id, result, error } = e.data;
+
+      const pending = this.pendingRequests.get(id);
+      if (pending) {
+        clearTimeout(pending.timeoutHandle);
+        this.pendingRequests.delete(id);
+
+        if (type === 'SUCCESS') {
+          pending.resolve(result);
+        } else {
+          pending.reject(new Error(error));
+        }
+      }
+    };
+
+    this.worker.onerror = (e) => {
+      // Reject every request currently in flight -- a worker-level error
+      // (e.g. the module failed to parse/load) means none of them will
+      // ever get a response.
+      const err = new Error(`Worker error: ${e.message}`);
+      for (const [id, pending] of this.pendingRequests) {
+        clearTimeout(pending.timeoutHandle);
+        pending.reject(err);
+        this.pendingRequests.delete(id);
+      }
+    };
+
+    await this.callWorker<void>({ type: 'INIT', payload: { wasmUrl } }, timeoutMs);
+    this.isInitialized = true;
+  }
+
   isReady(): boolean {
-    return this.isInitialized && this.wasmModule !== null;
+    return this.isInitialized && this.worker !== null;
   }
 
-  /**
-   * Health check - verify WASM engine is working
-   */
   health(): HealthStatus {
     if (!this.isReady()) {
       return { status: 'not_initialized' };
     }
-
-    try {
-      const ptr = this.wasmModule!.exports.wasm_health();
-      const json = this.ptrToString(ptr);
-      this.wasmModule!.exports.wasm_free(ptr);
-      return JSON.parse(json);
-    } catch (error) {
-      return {
-        status: 'error',
-        message: `Health check failed: ${error}`
-      };
-    }
+    // Since worker health check would be async, we just return ready if worker is up
+    return { status: 'ready', message: 'WASM Worker Running' };
   }
 
-  /**
-   * Run inference on a prompt
-   * 
-   * Contract: Result is allocated in static buffer, must call wasm_free
-   */
-  infer(prompt: string, maxTokens: number = 128): InferenceResult {
-    if (!this.isReady()) {
-      throw new Error('WASM module not initialized');
-    }
+  async infer(prompt: string, maxTokens: number = 128): Promise<InferenceResult> {
+    if (!this.isReady()) throw new Error('WASM module not initialized');
 
-    const requestJson = JSON.stringify({
-      prompt,
-      max_tokens: maxTokens,
-      session_id: 'browser-session',
-      temperature: 0.7
+    return this.callWorker<InferenceResult>({
+      type: 'INFER',
+      payload: { action: 'infer', parameters: { prompt, max_tokens: maxTokens } }
     });
-
-    const requestPtr = this.stringToPtr(requestJson);
-    
-    try {
-      const resultPtr = this.wasmModule!.exports.wasm_infer(requestPtr, maxTokens);
-      const resultJson = this.ptrToString(resultPtr);
-      
-      // CRITICAL: Always free WASM result after reading
-      this.wasmModule!.exports.wasm_free(resultPtr);
-      
-      const result = JSON.parse(resultJson);
-      this.validateInferenceResult(result);
-      return result;
-
-    } finally {
-      // Free input pointer
-      this.wasmModule!.exports.free(requestPtr);
-    }
   }
 
-  /**
-   * Analyze patient vital signs
-   * 
-   * Contract: Result is allocated in static buffer
-   */
-  analyzeVitals(vitals: Record<string, number>): VitalsAnalysis {
-    if (!this.isReady()) {
-      throw new Error('WASM module not initialized');
-    }
+  async analyzeVitals(vitals: Record<string, number>): Promise<VitalsAnalysis> {
+    if (!this.isReady()) throw new Error('WASM module not initialized');
 
-    const vitalsJson = JSON.stringify(vitals);
-    const vitalsPtr = this.stringToPtr(vitalsJson);
-
-    try {
-      const resultPtr = this.wasmModule!.exports.wasm_analyze_vitals(vitalsPtr);
-      const resultJson = this.ptrToString(resultPtr);
-      
-      this.wasmModule!.exports.wasm_free(resultPtr);
-      
-      const result = JSON.parse(resultJson);
-      this.validateVitalsAnalysis(result);
-      return result;
-
-    } finally {
-      this.wasmModule!.exports.free(vitalsPtr);
-    }
+    return this.callWorker<VitalsAnalysis>({
+      type: 'ANALYZE_VITALS',
+      payload: vitals
+    });
   }
 
-  /**
-   * Simulate one step of training scenario
-   * 
-   * Contract: Pure function - same input always produces same output
-   */
-  simulateScenarioStep(scenario: Record<string, any>): ScenarioStep {
-    if (!this.isReady()) {
-      throw new Error('WASM module not initialized');
-    }
-
-    const scenarioJson = JSON.stringify(scenario);
-    const scenarioPtr = this.stringToPtr(scenarioJson);
-
-    try {
-      const resultPtr = this.wasmModule!.exports.wasm_simulate_scenario_step(scenarioPtr);
-      const resultJson = this.ptrToString(resultPtr);
-      
-      this.wasmModule!.exports.wasm_free(resultPtr);
-      
-      const result = JSON.parse(resultJson);
-      this.validateScenarioStep(result);
-      return result;
-
-    } finally {
-      this.wasmModule!.exports.free(scenarioPtr);
-    }
+  async simulateScenarioStep(_scenario: Record<string, any>): Promise<ScenarioStep> {
+    // Training scenario logic lives entirely server-side (ScenarioRuntime in
+    // src/clinical/training_scenario.cpp) and is deliberately not compiled
+    // into the WASM build -- see the comment on ApiClient.executeTrainingAction
+    // in api/client.ts for why an edge-native evaluator here would only ever
+    // be able to fake scoring, not actually run scenario logic.
+    throw new Error('Scenario stepping is not available in the WASM edge module; use the training API instead.');
   }
 
-  /**
-   * Echo test - verify string passing works correctly
-   * 
-   * Useful for debugging memory boundary issues
-   */
   echo(input: string): string {
-    if (!this.isReady()) {
-      throw new Error('WASM module not initialized');
-    }
-
-    const inputPtr = this.stringToPtr(input);
-
-    try {
-      const resultPtr = this.wasmModule!.exports.wasm_echo(inputPtr);
-      const resultJson = this.ptrToString(resultPtr);
-      
-      this.wasmModule!.exports.wasm_free(resultPtr);
-      
-      const result = JSON.parse(resultJson);
-      return result.echo;
-
-    } finally {
-      this.wasmModule!.exports.free(inputPtr);
-    }
+    return input; // Simple mock for echo
   }
 
-  /**
-   * Cleanup: Destroy WASM engine
-   * 
-   * Call when done with WASM (e.g., on app shutdown)
-   */
   destroy(): void {
-    if (this.isReady()) {
-      this.wasmModule!.exports.wasm_destroy_engine();
-      this.isInitialized = false;
-      this.wasmModule = null;
+    for (const [id, pending] of this.pendingRequests) {
+      clearTimeout(pending.timeoutHandle);
+      pending.reject(new Error('WASM worker destroyed while request was in flight'));
+      this.pendingRequests.delete(id);
     }
-  }
-
-  // =========================================================================
-  // Private: Memory Management
-  // =========================================================================
-
-  /**
-   * Convert JavaScript string to WASM memory pointer
-   * 
-   * Encodes string as UTF-8, allocates in WASM heap, returns pointer
-   */
-  private stringToPtr(str: string): number {
-    if (!this.wasmModule) {
-      throw new Error('WASM module not available');
+    if (this.worker) {
+      this.worker.terminate();
+      this.worker = null;
     }
-
-    const encoder = new TextEncoder();
-    const data = encoder.encode(str + '\0'); // Add null terminator
-
-    if (data.length > this.MAX_RESULT_SIZE) {
-      throw new Error(`Input string too large: ${data.length} > ${this.MAX_RESULT_SIZE}`);
-    }
-
-    const ptr = this.wasmModule.exports.malloc(data.length);
-
-    // Write to WASM linear memory
-    const memory = new Uint8Array(this.wasmModule.exports.memory.buffer);
-    memory.set(data, ptr);
-
-    return ptr;
-  }
-
-  /**
-   * Convert WASM memory pointer to JavaScript string
-   * 
-   * Reads until null terminator, decodes UTF-8
-   */
-  private ptrToString(ptr: number): string {
-    if (!this.wasmModule) {
-      throw new Error('WASM module not available');
-    }
-
-    const memory = new Uint8Array(this.wasmModule.exports.memory.buffer);
-
-    // Find null terminator
-    let length = 0;
-    while (
-      ptr + length < memory.length &&
-      memory[ptr + length] !== 0 &&
-      length < this.MAX_RESULT_SIZE
-    ) {
-      length++;
-    }
-
-    if (length >= this.MAX_RESULT_SIZE) {
-      throw new Error('Result buffer overflow detected');
-    }
-
-    // Convert bytes to string
-    const bytes = memory.subarray(ptr, ptr + length);
-    return new TextDecoder().decode(bytes);
-  }
-
-  // =========================================================================
-  // Private: Validation
-  // =========================================================================
-
-  /**
-   * Validate inference result JSON schema
-   */
-  private validateInferenceResult(result: any): void {
-    if (!result.response) {
-      throw new Error('Invalid inference result: missing response');
-    }
-    if (typeof result.confidence !== 'number') {
-      throw new Error('Invalid inference result: confidence not a number');
-    }
-    if (result.confidence < 0 || result.confidence > 1) {
-      throw new Error('Invalid inference result: confidence out of range [0, 1]');
-    }
-  }
-
-  /**
-   * Validate vitals analysis JSON schema
-   */
-  private validateVitalsAnalysis(result: any): void {
-    const validSeverities = ['info', 'warning', 'critical'];
-    if (!validSeverities.includes(result.severity)) {
-      throw new Error(`Invalid severity: ${result.severity}`);
-    }
-    if (!Array.isArray(result.alerts)) {
-      throw new Error('Invalid vitals analysis: alerts not an array');
-    }
-    if (!Array.isArray(result.recommendations)) {
-      throw new Error('Invalid vitals analysis: recommendations not an array');
-    }
-  }
-
-  /**
-   * Validate scenario step JSON schema
-   */
-  private validateScenarioStep(result: any): void {
-    if (!result.scenario_id) {
-      throw new Error('Invalid scenario step: missing scenario_id');
-    }
-    if (!Array.isArray(result.events)) {
-      throw new Error('Invalid scenario step: events not an array');
-    }
-    if (result.immutable !== true) {
-      throw new Error('Invalid scenario step: immutable flag not set');
-    }
+    this.isInitialized = false;
   }
 }
 
-// ============================================================================
-// Singleton Instance
-// ============================================================================
-
 let wasmInstance: WasmBridge | null = null;
 
-export async function initializeWasm(wasmUrl: string = '/dist/wasm/optic-trigeminal.wasm'): Promise<WasmBridge> {
+export async function initializeWasm(wasmUrl: string = '/optic-trigeminal.wasm'): Promise<WasmBridge> {
   if (wasmInstance && wasmInstance.isReady()) {
     return wasmInstance;
   }

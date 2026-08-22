@@ -14,6 +14,8 @@
 #include <cstring>
 #include <string>
 #include <sstream>
+#include <vector>
+#include <cstdio>
 #include "inference_engine.h"
 
 // ============================================================================
@@ -33,15 +35,33 @@ static NativeInferenceEngine* g_engine = nullptr;
 
 /**
  * Initialize WASM engine (called once from JavaScript on module load)
- * 
+ *
  * Required: Call this before using any other WASM functions
  */
+namespace {
+// A small compiled-in subset of data/medical_research.jsonl so "Test Text
+// Inference" in Edge Diagnostics has real clinical content to retrieve
+// instead of nothing -- the browser sandbox can't read the server's data/
+// directory the way HTTPServer::initialize does, so wasm_init_engine()
+// otherwise starts every session from an empty knowledge graph regardless
+// of how good the server-side corpus gets.
+std::vector<TrainingExample> embedded_clinical_training_data() {
+  return {
+    {"What are the early signs of sepsis?", "Early signs include fever or hypothermia, tachycardia (HR>90), tachypnea (RR>20), altered mental status, and hypotension. qSOFA flags sepsis risk with any two of: RR>=22, altered mentation, SBP<=100 mmHg.", "medical_clinical"},
+    {"What vitals define hypotension requiring nursing escalation?", "Systolic BP below 90 mmHg or MAP below 65 mmHg is generally considered hypotensive and warrants reassessment, provider notification, and consideration of the underlying cause.", "medical_clinical"},
+    {"What are signs of respiratory distress in an adult patient?", "Tachypnea, use of accessory muscles, nasal flaring, cyanosis, and SpO2 below 90-92% on room air are hallmark signs requiring immediate assessment.", "medical_clinical"},
+    {"What are the FAST criteria for stroke recognition?", "Face drooping, Arm weakness/drift, Speech difficulty, Time to call for help immediately. Onset time is critical for thrombolytic therapy eligibility.", "medical_clinical"},
+    {"What is the first-line treatment for anaphylaxis?", "Intramuscular epinephrine (0.3-0.5 mg of 1:1000 concentration) into the anterolateral thigh, given immediately -- delay is the leading cause of fatal anaphylaxis.", "medical_clinical"}
+  };
+}
+}
+
 extern "C" {
   EMSCRIPTEN_KEEPALIVE
   int wasm_init_engine() {
     try {
       g_engine = new NativeInferenceEngine();
-      if (!g_engine->initialize()) {
+      if (!g_engine->initialize_with_training_data(embedded_clinical_training_data())) {
         return -1; // Initialization failed
       }
       return 0; // Success
@@ -107,6 +127,28 @@ static std::string json_escape(const std::string& str) {
   return escaped;
 }
 
+/**
+ * Extract a numeric field from a flat JSON object using the same
+ * colon-then-value naive parsing convention as wasm_infer's string
+ * extraction above (no full JSON parser is linked into this module).
+ * Returns `fallback` if the key is absent or not a parseable number.
+ */
+static double extract_json_number(const std::string& json_str, const std::string& key, double fallback) {
+  size_t key_pos = json_str.find("\"" + key + "\"");
+  if (key_pos == std::string::npos) return fallback;
+  size_t colon_pos = json_str.find(":", key_pos);
+  if (colon_pos == std::string::npos) return fallback;
+  size_t value_start = json_str.find_first_not_of(" \t\r\n", colon_pos + 1);
+  if (value_start == std::string::npos) return fallback;
+  try {
+    size_t consumed = 0;
+    double value = std::stod(json_str.substr(value_start), &consumed);
+    return value;
+  } catch (...) {
+    return fallback;
+  }
+}
+
 // ============================================================================
 // Inference API
 // ============================================================================
@@ -135,10 +177,24 @@ extern "C" {
       // Parse request JSON (simplified - production would use proper JSON parser)
       std::string json_str(request_json);
       
-      // Extract prompt between quotes (naive parsing for Phase 1)
-      size_t prompt_start = json_str.find("\"prompt\"") + 11;
-      size_t prompt_end = json_str.find("\"", prompt_start);
-      std::string prompt = json_str.substr(prompt_start, prompt_end - prompt_start);
+      // Extract prompt between quotes (naive parsing for Phase 1). Find the
+      // colon after the key, then the first quote after that, rather than a
+      // hardcoded offset -- a fixed offset silently drops leading
+      // characters whenever the JSON has (or lacks) a space after the
+      // colon, e.g. "prompt": "What..." previously came out as "hat...".
+      std::string prompt;
+      size_t key_pos = json_str.find("\"prompt\"");
+      if (key_pos != std::string::npos) {
+        size_t colon_pos = json_str.find(":", key_pos);
+        size_t quote_start = colon_pos != std::string::npos ? json_str.find("\"", colon_pos) : std::string::npos;
+        if (quote_start != std::string::npos) {
+          size_t prompt_start = quote_start + 1;
+          size_t prompt_end = json_str.find("\"", prompt_start);
+          if (prompt_end != std::string::npos) {
+            prompt = json_str.substr(prompt_start, prompt_end - prompt_start);
+          }
+        }
+      }
 
       // Create inference request
       InferenceRequest inf_req(prompt, max_tokens);
@@ -200,14 +256,105 @@ extern "C" {
     }
 
     try {
-      // Phase 1: Placeholder implementation
-      // In Phase 3, this will call clinical_analyzer->analyze(vitals)
-      
+      // Real threshold-based severity classification, matching the same
+      // nursing-practice thresholds ClinicalAnalyzer uses server-side
+      // (src/clinical/clinical_analyzer.cpp) -- this used to ignore its
+      // input entirely and always return the same hardcoded
+      // {severity:"info", alerts:[], recommendations:["Monitor patient"]}
+      // regardless of how deranged the actual vitals were.
+      std::string json_str(vitals_json);
+      double hr = extract_json_number(json_str, "heart_rate", -1);
+      double bp_sys = extract_json_number(json_str, "blood_pressure", -1);
+      double spo2 = extract_json_number(json_str, "spo2", -1);
+      double temp = extract_json_number(json_str, "temperature", -1);
+      double rr = extract_json_number(json_str, "respiratory_rate", -1);
+
+      std::vector<std::string> alerts;
+      std::vector<std::string> recommendations;
+      std::string severity = "info";
+      auto escalate = [&](const std::string& s) {
+        // info < warning < critical
+        if (s == "critical") severity = "critical";
+        else if (s == "warning" && severity != "critical") severity = "warning";
+      };
+
+      if (hr >= 0) {
+        if (hr < 40 || hr > 130) {
+          alerts.push_back("Heart rate " + std::to_string((int)hr) + " bpm is critically abnormal");
+          recommendations.push_back("Notify provider immediately; consider cardiac monitoring");
+          escalate("critical");
+        } else if (hr < 50 || hr > 110) {
+          alerts.push_back("Heart rate " + std::to_string((int)hr) + " bpm is outside normal range");
+          recommendations.push_back("Reassess heart rate within 15 minutes");
+          escalate("warning");
+        }
+      }
+      if (spo2 >= 0) {
+        if (spo2 < 85) {
+          alerts.push_back("SpO2 " + std::to_string((int)spo2) + "% is critically low");
+          recommendations.push_back("Apply supplemental oxygen and notify provider");
+          escalate("critical");
+        } else if (spo2 < 90) {
+          alerts.push_back("SpO2 " + std::to_string((int)spo2) + "% is below normal");
+          recommendations.push_back("Recheck oxygen saturation; consider supplemental O2");
+          escalate("warning");
+        }
+      }
+      if (bp_sys >= 0) {
+        if (bp_sys < 80 || bp_sys > 180) {
+          alerts.push_back("Systolic BP " + std::to_string((int)bp_sys) + " mmHg is critically abnormal");
+          recommendations.push_back("Notify provider immediately; reassess perfusion");
+          escalate("critical");
+        } else if (bp_sys < 90 || bp_sys > 160) {
+          alerts.push_back("Systolic BP " + std::to_string((int)bp_sys) + " mmHg is outside normal range");
+          recommendations.push_back("Recheck blood pressure within 15 minutes");
+          escalate("warning");
+        }
+      }
+      if (rr >= 0) {
+        if (rr < 8 || rr > 30) {
+          alerts.push_back("Respiratory rate " + std::to_string((int)rr) + "/min is critically abnormal");
+          recommendations.push_back("Assess airway and breathing immediately");
+          escalate("critical");
+        } else if (rr < 10 || rr > 24) {
+          alerts.push_back("Respiratory rate " + std::to_string((int)rr) + "/min is outside normal range");
+          recommendations.push_back("Reassess respiratory status within 15 minutes");
+          escalate("warning");
+        }
+      }
+      if (temp >= 0) {
+        char temp_buf[16];
+        snprintf(temp_buf, sizeof(temp_buf), "%.1f", temp);
+        if (temp > 39.5 || temp < 35.0) {
+          alerts.push_back("Temperature " + std::string(temp_buf) + "C is critically abnormal");
+          recommendations.push_back("Notify provider; initiate temperature management protocol");
+          escalate("critical");
+        } else if (temp > 38.0 || temp < 36.0) {
+          alerts.push_back("Temperature " + std::string(temp_buf) + "C is outside normal range");
+          recommendations.push_back("Recheck temperature within 30 minutes");
+          escalate("warning");
+        }
+      }
+
+      if (alerts.empty()) {
+        recommendations.push_back("Continue routine monitoring");
+      }
+
       std::stringstream response;
       response << "{\n";
-      response << "  \"severity\": \"info\",\n";
-      response << "  \"alerts\": [],\n";
-      response << "  \"recommendations\": [\"Monitor patient\"],\n";
+      response << "  \"severity\": \"" << severity << "\",\n";
+      response << "  \"alerts\": [";
+      for (size_t i = 0; i < alerts.size(); ++i) {
+        if (i > 0) response << ", ";
+        response << "\"" << json_escape(alerts[i]) << "\"";
+      }
+      response << "],\n";
+      response << "  \"recommendations\": [";
+      for (size_t i = 0; i < recommendations.size(); ++i) {
+        if (i > 0) response << ", ";
+        response << "\"" << json_escape(recommendations[i]) << "\"";
+      }
+      response << "],\n";
       response << "  \"confidence\": 0.95\n";
       response << "}\n";
 

@@ -154,3 +154,887 @@
     "immutable": true
   }
 }
+{
+  "event_id": "EVT-1787369981-0",
+  "session_id": "HYPOTENSION_001_1787369969",
+  "scenario_id": "",
+  "timestamp": 1787369981,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=assess_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370134-1",
+  "session_id": "HYPOTENSION_001_1787370086",
+  "scenario_id": "",
+  "timestamp": 1787370134,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=assess_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370139-2",
+  "session_id": "HYPOTENSION_001_1787370086",
+  "scenario_id": "",
+  "timestamp": 1787370139,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=assess_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370141-3",
+  "session_id": "HYPOTENSION_001_1787370086",
+  "scenario_id": "",
+  "timestamp": 1787370141,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=position_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370144-4",
+  "session_id": "HYPOTENSION_001_1787370086",
+  "scenario_id": "",
+  "timestamp": 1787370144,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=administer_oxygen nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370146-5",
+  "session_id": "HYPOTENSION_001_1787370086",
+  "scenario_id": "",
+  "timestamp": 1787370146,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370557-0",
+  "session_id": "HYPOTENSION_001_1787370544",
+  "scenario_id": "",
+  "timestamp": 1787370557,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=administer_oxygen nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370572-1",
+  "session_id": "HYPOTENSION_001_1787370544",
+  "scenario_id": "",
+  "timestamp": 1787370572,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=position_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370706-2",
+  "session_id": "HYPOTENSION_001_1787370704",
+  "scenario_id": "",
+  "timestamp": 1787370706,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=assess_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370707-3",
+  "session_id": "HYPOTENSION_001_1787370704",
+  "scenario_id": "",
+  "timestamp": 1787370707,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=assess_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370708-4",
+  "session_id": "HYPOTENSION_001_1787370704",
+  "scenario_id": "",
+  "timestamp": 1787370708,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=assess_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370709-5",
+  "session_id": "HYPOTENSION_001_1787370704",
+  "scenario_id": "",
+  "timestamp": 1787370709,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=assess_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370709-6",
+  "session_id": "HYPOTENSION_001_1787370704",
+  "scenario_id": "",
+  "timestamp": 1787370709,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=assess_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370710-7",
+  "session_id": "HYPOTENSION_001_1787370704",
+  "scenario_id": "",
+  "timestamp": 1787370710,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=assess_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370711-8",
+  "session_id": "HYPOTENSION_001_1787370704",
+  "scenario_id": "",
+  "timestamp": 1787370711,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=assess_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370711-9",
+  "session_id": "HYPOTENSION_001_1787370704",
+  "scenario_id": "",
+  "timestamp": 1787370711,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=assess_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370712-10",
+  "session_id": "HYPOTENSION_001_1787370704",
+  "scenario_id": "",
+  "timestamp": 1787370712,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=assess_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370712-11",
+  "session_id": "HYPOTENSION_001_1787370704",
+  "scenario_id": "",
+  "timestamp": 1787370712,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=assess_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370713-12",
+  "session_id": "HYPOTENSION_001_1787370704",
+  "scenario_id": "",
+  "timestamp": 1787370713,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=assess_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370714-13",
+  "session_id": "HYPOTENSION_001_1787370704",
+  "scenario_id": "",
+  "timestamp": 1787370714,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=assess_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370722-14",
+  "session_id": "HYPOTENSION_001_1787370704",
+  "scenario_id": "",
+  "timestamp": 1787370722,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=administer_oxygen nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370723-15",
+  "session_id": "HYPOTENSION_001_1787370704",
+  "scenario_id": "",
+  "timestamp": 1787370723,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=position_patient nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787370724-16",
+  "session_id": "HYPOTENSION_001_1787370704",
+  "scenario_id": "",
+  "timestamp": 1787370724,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id= timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371302-0",
+  "session_id": "HYPOTENSION_001_1787371291",
+  "scenario_id": "",
+  "timestamp": 1787371302,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=apply_iv_fluids nurse_id= timely=false",
+  "elapsed_seconds": 60,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371563-1",
+  "session_id": "HYPOTENSION_001_1787371473",
+  "scenario_id": "",
+  "timestamp": 1787371563,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=apply_iv_fluids nurse_id= timely=true",
+  "elapsed_seconds": 1320,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371734-2",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371734,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=apply_iv_fluids nurse_id= timely=false",
+  "elapsed_seconds": 480,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371739-3",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371739,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=start_vasopressor nurse_id= timely=false",
+  "elapsed_seconds": 540,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371741-4",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371741,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=apply_iv_fluids nurse_id= timely=false",
+  "elapsed_seconds": 540,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371742-5",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371742,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id= timely=true",
+  "elapsed_seconds": 600,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371747-6",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371747,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=start_vasopressor nurse_id= timely=false",
+  "elapsed_seconds": 660,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371747-7",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371747,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=apply_iv_fluids nurse_id= timely=false",
+  "elapsed_seconds": 660,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371748-8",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371748,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id= timely=true",
+  "elapsed_seconds": 660,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371749-9",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371749,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=apply_iv_fluids nurse_id= timely=false",
+  "elapsed_seconds": 660,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371757-10",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371757,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id= timely=true",
+  "elapsed_seconds": 780,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371760-11",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371760,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id= timely=true",
+  "elapsed_seconds": 840,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371761-12",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371761,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id= timely=true",
+  "elapsed_seconds": 840,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371761-13",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371761,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id= timely=true",
+  "elapsed_seconds": 840,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371762-14",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371762,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id= timely=true",
+  "elapsed_seconds": 900,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371762-15",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371762,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id= timely=true",
+  "elapsed_seconds": 900,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371763-16",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371763,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id= timely=true",
+  "elapsed_seconds": 900,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371763-17",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371763,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id= timely=true",
+  "elapsed_seconds": 900,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371764-18",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371764,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id= timely=true",
+  "elapsed_seconds": 900,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371764-19",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371764,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id= timely=true",
+  "elapsed_seconds": 900,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787371764-20",
+  "session_id": "HYPOTENSION_001_1787371702",
+  "scenario_id": "",
+  "timestamp": 1787371764,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id= timely=true",
+  "elapsed_seconds": 900,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787404264-0",
+  "session_id": "HYPOTENSION_001_1787404254",
+  "scenario_id": "",
+  "timestamp": 1787404264,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=apply_iv_fluids nurse_id=RN_001 timely=false",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787404264-1",
+  "session_id": "SEPSIS_EARLY_001_1787404254",
+  "scenario_id": "",
+  "timestamp": 1787404264,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=initiate_sepsis_bundle nurse_id=CHARGE_001 timely=false",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787404278-2",
+  "session_id": "HYPOTENSION_001_1787404254",
+  "scenario_id": "",
+  "timestamp": 1787404278,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=apply_iv_fluids nurse_id=RN_001 timely=false",
+  "elapsed_seconds": 360,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787404278-3",
+  "session_id": "HYPOTENSION_001_1787404254",
+  "scenario_id": "",
+  "timestamp": 1787404278,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id=RN_001 timely=true",
+  "elapsed_seconds": 360,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787404284-4",
+  "session_id": "HYPOTENSION_001_1787404254",
+  "scenario_id": "HYPOTENSION_001",
+  "timestamp": 1787404284,
+  "event_type": "SESSION_COMPLETE",
+  "event_data": "outcome=COMPLETED nurse_id=RN_001 duration=360",
+  "elapsed_seconds": 360,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787404294-5",
+  "session_id": "SEPSIS_EARLY_001_1787404254",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1787404294,
+  "event_type": "SESSION_COMPLETE",
+  "event_data": "outcome=EARLY_TERMINATION nurse_id=CHARGE_001 duration=0",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787404303-6",
+  "session_id": "CARDIAC_ARREST_001_1787404294",
+  "scenario_id": "CARDIAC_ARREST_001",
+  "timestamp": 1787404303,
+  "event_type": "SESSION_COMPLETE",
+  "event_data": "outcome=EARLY_TERMINATION nurse_id=RN_001 duration=0",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787404486-7",
+  "session_id": "HYPOTENSION_001_1787404477",
+  "scenario_id": "",
+  "timestamp": 1787404486,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id=RN_001 timely=true",
+  "elapsed_seconds": 120,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787404492-8",
+  "session_id": "HYPOTENSION_001_1787404477",
+  "scenario_id": "HYPOTENSION_001",
+  "timestamp": 1787404492,
+  "event_type": "SESSION_COMPLETE",
+  "event_data": "outcome=COMPLETED nurse_id=RN_001 duration=180",
+  "elapsed_seconds": 180,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787410952-0",
+  "session_id": "HYPOTENSION_001_1787410946",
+  "scenario_id": "",
+  "timestamp": 1787410952,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=apply_iv_fluids nurse_id=STU_7c3f41be timely=false",
+  "elapsed_seconds": 60,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787410957-1",
+  "session_id": "HYPOTENSION_001_1787410946",
+  "scenario_id": "HYPOTENSION_001",
+  "timestamp": 1787410957,
+  "event_type": "SESSION_COMPLETE",
+  "event_data": "outcome=COMPLETED nurse_id=STU_7c3f41be duration=120",
+  "elapsed_seconds": 120,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787411265-0",
+  "session_id": "HYPOTENSION_001_1787411259",
+  "scenario_id": "",
+  "timestamp": 1787411265,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id=STU_7c3f41be timely=true",
+  "elapsed_seconds": 60,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787411269-1",
+  "session_id": "HYPOTENSION_001_1787411259",
+  "scenario_id": "HYPOTENSION_001",
+  "timestamp": 1787411269,
+  "event_type": "SESSION_COMPLETE",
+  "event_data": "outcome=COMPLETED nurse_id=STU_7c3f41be duration=120 score=10.000000",
+  "elapsed_seconds": 120,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787422871-0",
+  "session_id": "CARDIAC_ARREST_001_1787422846",
+  "scenario_id": "",
+  "timestamp": 1787422871,
+  "event_type": "FAILURE_TRIGGERED",
+  "event_data": "failure=prolonged_arrest",
+  "elapsed_seconds": 360,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787422896-1",
+  "session_id": "CARDIAC_ARREST_001_1787422846",
+  "scenario_id": "CARDIAC_ARREST_001",
+  "timestamp": 1787422896,
+  "event_type": "SESSION_COMPLETE",
+  "event_data": "outcome=COMPLETED nurse_id=STU_3fa02fed duration=720 score=0.000000",
+  "elapsed_seconds": 720,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787430395-2",
+  "session_id": "RESPIRATORY_001_1787430366",
+  "scenario_id": "RESPIRATORY_001",
+  "timestamp": 1787430395,
+  "event_type": "SESSION_COMPLETE",
+  "event_data": "outcome=EARLY_TERMINATION nurse_id=RN_001 duration=1200 score=0.000000",
+  "elapsed_seconds": 1200,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787430401-3",
+  "session_id": "RESPIRATORY_001_1787430395",
+  "scenario_id": "",
+  "timestamp": 1787430401,
+  "event_type": "FAILURE_TRIGGERED",
+  "event_data": "failure=respiratory_failure",
+  "elapsed_seconds": 1080,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787430414-4",
+  "session_id": "RESPIRATORY_001_1787430395",
+  "scenario_id": "RESPIRATORY_001",
+  "timestamp": 1787430414,
+  "event_type": "SESSION_COMPLETE",
+  "event_data": "outcome=EARLY_TERMINATION nurse_id=RN_001 duration=1200 score=0.000000",
+  "elapsed_seconds": 1200,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787430414-5",
+  "session_id": "CARDIAC_ARREST_001_1787430414",
+  "scenario_id": "",
+  "timestamp": 1787430414,
+  "event_type": "FAILURE_TRIGGERED",
+  "event_data": "failure=prolonged_arrest",
+  "elapsed_seconds": 360,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787430629-0",
+  "session_id": "CARDIAC_ARREST_001_1787430629",
+  "scenario_id": "",
+  "timestamp": 1787430629,
+  "event_type": "FAILURE_TRIGGERED",
+  "event_data": "failure=prolonged_arrest",
+  "elapsed_seconds": 360,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787430629-1",
+  "session_id": "CARDIAC_ARREST_001_1787430629",
+  "scenario_id": "",
+  "timestamp": 1787430629,
+  "event_type": "FAILURE_TRIGGERED",
+  "event_data": "failure=no_rosc",
+  "elapsed_seconds": 660,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787430644-2",
+  "session_id": "CARDIAC_ARREST_001_1787430629",
+  "scenario_id": "CARDIAC_ARREST_001",
+  "timestamp": 1787430644,
+  "event_type": "SESSION_COMPLETE",
+  "event_data": "outcome=EARLY_TERMINATION nurse_id=RN_001 duration=720 score=0.000000",
+  "elapsed_seconds": 720,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787430644-3",
+  "session_id": "CARDIAC_ARREST_001_1787430644",
+  "scenario_id": "",
+  "timestamp": 1787430644,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=initiate_cpr nurse_id=RN_001 timely=true",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787430650-4",
+  "session_id": "CARDIAC_ARREST_001_1787430644",
+  "scenario_id": "CARDIAC_ARREST_001",
+  "timestamp": 1787430650,
+  "event_type": "SESSION_COMPLETE",
+  "event_data": "outcome=EARLY_TERMINATION nurse_id=RN_001 duration=0 score=10.000000",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}

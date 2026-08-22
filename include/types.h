@@ -205,9 +205,16 @@ inline std::string current_timestamp() {
     auto time = std::chrono::system_clock::to_time_t(now);
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
         now.time_since_epoch()) % 1000;
-    
+
+    // gmtime() writes into a single shared static buffer; this server
+    // handles every connection on its own detached thread (see
+    // HTTPServer::start_server), so two concurrent requests calling
+    // gmtime() at the same time could tear each other's struct tm fields
+    // mid-write -- producing garbage dates (observed: a "year 2262"
+    // timestamp). gmtime_r() writes into a caller-owned buffer instead.
+    struct tm tm_buf;
     char buffer[30];
-    strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", gmtime(&time));
+    strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", gmtime_r(&time, &tm_buf));
     return std::string(buffer) + "Z";
 }
 

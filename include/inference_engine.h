@@ -9,7 +9,9 @@
 #include "meta_debugger.h"
 #include "cognitive_load_balancer.h"
 #include "long_horizon_planner.h"
+#ifndef EMSCRIPTEN_WASM_BUILD
 #include "debug_server.h"
+#endif
 #include "kernel_service_registry.h"
 #include "policy_engine.h" // Include PolicyEngine
 #include "decoder_compliance_gate.h" // Include DecoderComplianceGate
@@ -20,6 +22,9 @@
 #include "response_pipeline.h" // Include ResponsePipeline
 #include "entity_extractor.h" // Include EntityExtractor
 #include "clinical_analyzer.h" // Include ClinicalObservation
+#ifndef EMSCRIPTEN_WASM_BUILD
+#include "groq_client.h"
+#endif
 #include <chrono>
 
 using Intent = IntentOrchestrator::Intent;
@@ -42,6 +47,9 @@ private:
     
     std::unique_ptr<PolicyEngine> policy_engine; // Phase 0
     std::unique_ptr<LearningController> learning_controller; // Phase 7
+#ifndef EMSCRIPTEN_WASM_BUILD
+    std::unique_ptr<Groq::GroqClient> groq_client; // External reasoning API
+#endif
     
     std::unique_ptr<ResponsePipeline> response_pipeline;
     std::map<std::string, std::map<std::string, std::string>> session_contexts;
@@ -66,7 +74,9 @@ private:
     std::unique_ptr<MetaDebugger> meta_debugger;
     std::unique_ptr<CognitiveLoadBalancer> load_balancer;
     std::unique_ptr<LongHorizonPlanner> horizon_planner;
+#ifndef EMSCRIPTEN_WASM_BUILD
     std::unique_ptr<DebugServer> debug_server;
+#endif
     
     std::string current_process_id;
     std::map<std::string, GraphNode> knowledge_graph_nodes;
@@ -94,6 +104,7 @@ public:
     
     InferenceResponse infer(const InferenceRequest& request);
     InferenceResponse native_infer(const std::string& prompt, int max_tokens = 4096);
+    InferenceResponse enhanced_infer(const std::string& prompt, const std::string& model, int max_tokens = 4096);
     
     void learn_from_feedback(const std::string& prompt, const std::string& response, bool was_good);
     void learn_from_example(const TrainingExample& example);
@@ -133,7 +144,9 @@ public:
     MetaDebugger* get_meta_debugger() { return meta_debugger.get(); }
     CognitiveLoadBalancer* get_load_balancer() { return load_balancer.get(); }
     LongHorizonPlanner* get_horizon_planner() { return horizon_planner.get(); }
+#ifndef EMSCRIPTEN_WASM_BUILD
     DebugServer* get_debug_server() { return debug_server.get(); }
+#endif
     RAGDAGSystem* get_rag_dag() { return rag_dag_system.get(); }
     
     void set_session_id(const std::string& session_id);

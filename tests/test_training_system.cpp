@@ -217,7 +217,7 @@ void test_full_scenario_walkthrough() {
     
     // Finalize session
     runtime.finalize_session("COMPLETED");
-    analytics.record_session_complete(session_id, "SEPSIS_EARLY_001", "NURSE_002", "COMPLETED", 30 * 60);
+    analytics.record_session_complete(session_id, "SEPSIS_EARLY_001", "NURSE_002", "COMPLETED", 30 * 60, 85.0f);
     
     std::cout << "✓ Full scenario walkthrough completed" << std::endl;
 }

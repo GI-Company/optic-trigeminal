@@ -1,22 +1,40 @@
 export function showToast(message: string, type: 'success' | 'error' | 'info' = 'info'): void {
   const container = document.getElementById('system-log');
-  if (!container) return;
-
-  const entry = document.createElement('div');
-  const colors = {
-    success: 'text-green-400',
-    error: 'text-red-400',
-    info: 'text-slate-400'
-  };
-
-  entry.className = `${colors[type]} border-t border-slate-700 pt-1 px-2 py-1`;
-  entry.textContent = `[${type.toUpperCase()}] ${message}`;
-  container.appendChild(entry);
-  container.scrollTop = container.scrollHeight;
-
-  if (type !== 'error') {
-    setTimeout(() => entry.remove(), 5000);
+  if (!container) {
+    // Fallback so a failure is never completely silent even if the host
+    // element is ever missing again -- see index.html for why that
+    // happened before.
+    console[type === 'error' ? 'error' : 'log'](`[Toast:${type}] ${message}`);
+    return;
   }
+
+  const styles = {
+    success: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
+    error: 'border-red-500/40 bg-red-500/10 text-red-300',
+    info: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300'
+  };
+  const icons = { success: '✓', error: '✕', info: 'ℹ' };
+
+  // Built via textContent, not innerHTML, since message can carry raw
+  // server error text (e.g. err.message from a failed fetch) -- interpolating
+  // that into innerHTML would be an XSS vector.
+  const entry = document.createElement('div');
+  entry.className = `glass-panel ${styles[type]} rounded-lg border px-3 py-2 text-sm shadow-lg animate-fade-in-up flex items-start gap-2`;
+
+  const iconSpan = document.createElement('span');
+  iconSpan.className = 'shrink-0 font-bold';
+  iconSpan.textContent = icons[type];
+
+  const messageSpan = document.createElement('span');
+  messageSpan.className = 'min-w-0 break-words';
+  messageSpan.textContent = message;
+
+  entry.appendChild(iconSpan);
+  entry.appendChild(messageSpan);
+  container.appendChild(entry);
+
+  const dismissAfterMs = type === 'error' ? 10000 : 5000;
+  setTimeout(() => entry.remove(), dismissAfterMs);
 }
 
 export function debounce<T extends (...args: any[]) => any>(

@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="OpticTrigeminal v3.0.0 - Healthcare AI System">
     <title>OpticTrigeminal | Clinical Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
     <div id="app" class="min-h-screen bg-slate-900 text-slate-100">
@@ -20,6 +19,19 @@
             </div>
         </div>
     </div>
+    <!--
+      Toast host for showToast() (web/src/utils/ui-helpers.ts). It looks up
+      #system-log by id; that element used to only exist in the old,
+      unused web/src/main.ts entry point, not here -- so every single
+      showToast() call in the actually-running app (main-refactored.ts)
+      silently did nothing, success and error alike. Lives outside #app so
+      it survives screen navigation, which replaces #app's innerHTML wholesale.
+    -->
+    <div id="system-log" class="fixed bottom-4 right-4 z-50 flex max-h-80 w-80 flex-col-reverse gap-1.5 overflow-y-auto"></div>
+    <!-- Host for Modal.ts (admit/discharge/assign-patient, alert override).
+         Lives outside #app for the same reason #system-log does: it must
+         survive #app's innerHTML being replaced wholesale on navigation. -->
+    <div id="modal-root"></div>
     <script type="module" src="/src/main-refactored.ts"></script>
 </body>
 </html>

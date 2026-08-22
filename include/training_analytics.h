@@ -46,6 +46,12 @@ struct TrainingMetrics {
     int incorrect_actions;
     float ai_recommendation_acceptance_rate;
     float scenario_effectiveness_score;
+    // The actual graded score from the session (0-100, same number
+    // handle_training_end showed the nurse on their own debrief) --
+    // distinct from scenario_effectiveness_score, which is a coarser proxy
+    // derived only from missed_critical_windows. 0 for sessions recorded
+    // before this field existed (no SESSION_COMPLETE score= to read).
+    float final_score;
     std::string outcome;
     std::time_t session_start;
     std::time_t session_end;
@@ -68,8 +74,8 @@ public:
     void record_failure_condition(const std::string& session_id, const std::string& failure_name, 
                                  int elapsed_sec);
     void record_session_complete(const std::string& session_id, const std::string& scenario_id,
-                                const std::string& nurse_id, const std::string& outcome, 
-                                int total_duration);
+                                const std::string& nurse_id, const std::string& outcome,
+                                int total_duration, float final_score);
     
     std::vector<TrainingEvent> get_session_events(const std::string& session_id);
     std::vector<TrainingEvent> get_scenario_events(const std::string& scenario_id);

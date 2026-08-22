@@ -6,6 +6,7 @@ import type {
   PatientObservation,
   TrainingSession,
   TrainingScenario,
+  TrainingReport,
   AuditEntry
 } from '@api/types';
 
@@ -19,7 +20,9 @@ class StateManager {
     signedIn: false,
     currentRole: null,
     currentStaffName: '',
-    
+    acmkSessionId: null,
+    acmkMode: null,
+
     // Patient Data
     patients: [],
     selectedPatientId: null,
@@ -32,7 +35,8 @@ class StateManager {
     trainingActive: false,
     currentTrainingSession: null,
     trainingScenarios: [],
-    
+    lastTrainingReport: null,
+
     // UI
     viewMode: 'dashboard',
     showPasscodeModal: false,
@@ -84,20 +88,28 @@ class StateManager {
     this.state.currentRole = role;
     this.state.currentStaffName = staffName;
     this.state.showSignInModal = false;
-    
-    this.logAuditAction('SIGN_IN', `Staff signed in as ${staffName}`);
+
+    this.logAuditAction('SIGN_IN', `${staffName} signed in (role: ${role}, server-verified)`);
     this.notifyListeners();
   }
 
   signOut(): void {
     this.logAuditAction('SIGN_OUT', `${this.state.currentStaffName} signed out`);
-    
+
     this.state.signedIn = false;
     this.state.currentRole = null;
     this.state.currentStaffName = '';
     this.state.selectedPatientId = null;
     this.state.showSignInModal = true;
-    
+    this.state.acmkSessionId = null;
+    this.state.acmkMode = null;
+
+    this.notifyListeners();
+  }
+
+  setAcmkSession(sessionId: string, mode: 'simulation' | 'real_world'): void {
+    this.state.acmkSessionId = sessionId;
+    this.state.acmkMode = mode;
     this.notifyListeners();
   }
 
@@ -204,18 +216,19 @@ class StateManager {
     this.notifyListeners();
   }
 
-  endTraining(): void {
+  endTraining(report: TrainingReport | null = null): void {
     if (this.state.currentTrainingSession) {
       this.logAuditAction(
         'TRAINING_END',
         `Ended training with score ${this.state.currentTrainingSession.score}`
       );
     }
-    
+
     this.state.trainingActive = false;
     this.state.currentTrainingSession = null;
+    this.state.lastTrainingReport = report;
     this.state.viewMode = 'dashboard';
-    
+
     this.notifyListeners();
   }
 
@@ -298,6 +311,8 @@ class StateManager {
       currentRole: null,
       currentStaffName: '',
       selectedRole: undefined,
+      acmkSessionId: null,
+      acmkMode: null,
       patients: [],
       selectedPatientId: null,
       chartEntries: [],
@@ -305,6 +320,7 @@ class StateManager {
       trainingActive: false,
       currentTrainingSession: null,
       trainingScenarios: [],
+      lastTrainingReport: null,
       viewMode: 'dashboard',
       showPasscodeModal: false,
       showSignInModal: true,

@@ -7,10 +7,15 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native")
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-file(GLOB_RECURSE SOURCES "src/*.cpp")
+file(GLOB_RECURSE KERNEL_SOURCES "src/kernel/*.cpp")
+file(GLOB_RECURSE CLINICAL_SOURCES "src/clinical/*.cpp")
+file(GLOB_RECURSE SERVER_SOURCES "src/server/*.cpp")
 file(GLOB_RECURSE HEADERS "include/*.h")
 
-add_executable(optic-trigeminal ${SOURCES} ${HEADERS})
+# Exclude CLI from server build
+list(FILTER SERVER_SOURCES EXCLUDE REGEX ".*cli.*")
+
+add_executable(optic-trigeminal ${KERNEL_SOURCES} ${CLINICAL_SOURCES} ${SERVER_SOURCES} ${HEADERS})
 
 target_include_directories(optic-trigeminal PRIVATE 
     ${PROJECT_SOURCE_DIR}/include

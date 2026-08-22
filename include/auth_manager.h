@@ -27,7 +27,8 @@ enum class Role {
   CHARGE_NURSE = 1,
   PROVIDER = 2,
   ADMIN = 3,
-  IT = 4
+  IT = 4,
+  INSTRUCTOR = 5
 };
 
 enum class Permission {
@@ -106,6 +107,7 @@ struct StaffMember {
   std::vector<int> assigned_patients;
   bool active;
   std::time_t last_sign_in;
+  std::string password_hash;
 };
 
 // ============================================================================
@@ -249,6 +251,11 @@ public:
    * Get staff info
    */
   StaffMember* get_staff_member(const std::string& staff_id);
+
+  /**
+   * List all staff members (for assignment pickers, rosters, etc.)
+   */
+  std::vector<StaffMember> list_staff();
   
   // =========================================================================
   // Audit & Logging
@@ -275,20 +282,44 @@ public:
 private:
   // Staff database
   std::map<std::string, StaffMember> staff_database_;
-  
+
+  // Bulk-provisioned accounts (e.g. an instructor's imported class roster)
+  // don't have an env-var seed to regenerate from on restart the way the
+  // 5 demo accounts do, so they're persisted to disk here. Loaded once in
+  // initialize() (after the demo accounts are seeded, so a persisted entry
+  // never shadows a fresh env-var/random demo password), and re-saved after
+  // every add_staff_member() call.
+  std::string staff_store_path_ = "data/staff/staff_roster.json";
+  void load_persisted_staff();
+  void save_persisted_staff() const;
+
   // Active tokens (in production, use Redis/Memcached)
   std::map<std::string, AuthToken> active_tokens_;
-  
+
   // Role-to-permission mappings
   std::map<Role, RolePermissions> role_permissions_;
-  
+
+  // Sign-in rate limiting / lockout state, keyed by staff_id
+  struct LoginAttemptState {
+    int failed_count = 0;
+    std::time_t locked_until = 0;
+  };
+  std::map<std::string, LoginAttemptState> login_attempts_;
+
+  static constexpr int kMaxFailedAttempts = 5;
+  static constexpr int kLockoutSeconds = 300;
+
+  bool is_locked_out(const std::string& staff_id);
+  void record_failed_attempt(const std::string& staff_id);
+  void clear_failed_attempts(const std::string& staff_id);
+
   /**
    * Initialize role-to-permission mappings
    */
   void setup_role_permissions();
-  
+
   /**
-   * Generate a unique token ID
+   * Generate a unique, cryptographically-random token ID
    */
   std::string generate_token_id();
 };
@@ -299,5 +330,3 @@ private:
 
 // Typically accessed as: auth_manager->verify_token(token_id)
 extern std::unique_ptr<AuthManager> g_auth_manager;
-
-#endif

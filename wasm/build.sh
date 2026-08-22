@@ -25,15 +25,23 @@ NC='\033[0m' # No Color
 echo -e "${GREEN}[1/4] Checking Emscripten SDK...${NC}"
 
 if ! command -v emcc &> /dev/null; then
-    echo -e "${RED}ERROR: Emscripten SDK not found${NC}"
-    echo ""
-    echo "Install Emscripten:"
-    echo "  git clone https://github.com/emscripten-core/emsdk.git"
-    echo "  cd emsdk"
-    echo "  ./emsdk install latest"
-    echo "  ./emsdk activate latest"
-    echo "  source emsdk_env.sh"
-    echo ""
+    echo -e "${YELLOW}Emscripten SDK not found in path. Checking for local installation...${NC}"
+    
+    if [ ! -d "$PROJECT_ROOT/emsdk" ]; then
+        echo -e "${YELLOW}Cloning Emscripten SDK...${NC}"
+        git clone https://github.com/emscripten-core/emsdk.git "$PROJECT_ROOT/emsdk"
+        cd "$PROJECT_ROOT/emsdk"
+        ./emsdk install latest
+        ./emsdk activate latest
+        cd "$SCRIPT_DIR"
+    fi
+    
+    echo -e "${YELLOW}Sourcing emsdk_env.sh...${NC}"
+    source "$PROJECT_ROOT/emsdk/emsdk_env.sh"
+fi
+
+if ! command -v emcc &> /dev/null; then
+    echo -e "${RED}ERROR: Failed to setup Emscripten SDK${NC}"
     exit 1
 fi
 
@@ -92,7 +100,9 @@ fi
 
 # Copy output to dist directory
 cp optic-trigeminal.wasm "$DIST_DIR/"
-cp optic-trigeminal.js "$DIST_DIR/"
+if [ -f optic-trigeminal.js ]; then
+    cp optic-trigeminal.js "$DIST_DIR/"
+fi
 
 echo -e "${GREEN}  ✓ WASM module compiled${NC}"
 
@@ -105,7 +115,9 @@ echo -e "${GREEN}=== WASM Build Complete ===${NC}"
 echo ""
 echo "Output files:"
 echo "  - $DIST_DIR/optic-trigeminal.wasm (${RED}$(du -h "$DIST_DIR/optic-trigeminal.wasm" | cut -f1)${NC})"
-echo "  - $DIST_DIR/optic-trigeminal.js"
+if [ -f optic-trigeminal.js ]; then
+    echo "  - $DIST_DIR/optic-trigeminal.js"
+fi
 echo ""
 echo "Next steps:"
 echo "  1. Run tests: cd $PROJECT_ROOT/tests && npm test"

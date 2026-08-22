@@ -491,7 +491,16 @@ bool ScenarioRuntime::evaluate_action_correctness(const std::string& action, std
         }
     } else if (definition_.scenario_id == "SEPSIS_EARLY_001") {
         if (action == "initiate_sepsis_bundle") {
-            if (current_vitals_.temp > 38.0f && current_vitals_.rr > 20) {
+            // Matches this scenario's own REC-001 trigger_condition text
+            // ("Temp > 38.5 AND BP_sys < 100") shown to the nurse as the AI
+            // recommendation. Was checking rr > 20 instead of bp_sys < 100
+            // -- a condition this scenario's timeline (fever_spike at t=10,
+            // hypotension_onset at t=20 below) never actually moves RR
+            // toward at all, only Temp and BP, so the stated recommendation
+            // and the actual grading logic disagreed about what "correct"
+            // meant, and the RR half of the old check was only reachable by
+            // lucky +-1/min random jitter, not by design.
+            if (current_vitals_.temp > 38.5f && current_vitals_.bp_sys < 100) {
                 feedback = "Correct action - sepsis bundle appropriate for fever + tachypnea";
                 return true;
             } else {

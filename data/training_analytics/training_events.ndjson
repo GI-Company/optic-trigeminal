@@ -1038,3 +1038,68 @@
     "immutable": true
   }
 }
+{
+  "event_id": "EVT-1787433793-0",
+  "session_id": "SEPSIS_EARLY_001_1787433793",
+  "scenario_id": "",
+  "timestamp": 1787433793,
+  "event_type": "FAILURE_TRIGGERED",
+  "event_data": "failure=septic_shock",
+  "elapsed_seconds": 1260,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787433793-1",
+  "session_id": "SEPSIS_EARLY_001_1787433793",
+  "scenario_id": "",
+  "timestamp": 1787433793,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=initiate_sepsis_bundle nurse_id=RN_001 timely=true",
+  "elapsed_seconds": 1320,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787433802-2",
+  "session_id": "SEPSIS_EARLY_001_1787433793",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1787433802,
+  "event_type": "SESSION_COMPLETE",
+  "event_data": "outcome=EARLY_TERMINATION nurse_id=RN_001 duration=1320 score=10.000000",
+  "elapsed_seconds": 1320,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787433802-3",
+  "session_id": "SEPSIS_EARLY_001_1787433802",
+  "scenario_id": "",
+  "timestamp": 1787433802,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=initiate_sepsis_bundle nurse_id=RN_001 timely=false",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787433802-4",
+  "session_id": "SEPSIS_EARLY_001_1787433802",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1787433802,
+  "event_type": "SESSION_COMPLETE",
+  "event_data": "outcome=EARLY_TERMINATION nurse_id=RN_001 duration=0 score=0.000000",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}

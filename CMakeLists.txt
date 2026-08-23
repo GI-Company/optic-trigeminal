@@ -15,6 +15,25 @@ file(GLOB_RECURSE HEADERS "include/*.h")
 # Exclude CLI from server build
 list(FILTER SERVER_SOURCES EXCLUDE REGEX ".*cli.*")
 
+# The frontend build is embedded directly into the server binary (see
+# include/embedded_web_assets.h) so it's a genuinely single, self-contained
+# executable -- no web/dist/ directory has to travel with it. Excluded from
+# the glob above and re-added explicitly below: it may not exist yet at
+# configure time (glob would silently omit it), and this custom command
+# regenerates it from web/dist/ (run `npm run build` in web/ first) before
+# every build regardless.
+list(REMOVE_ITEM SERVER_SOURCES "${PROJECT_SOURCE_DIR}/src/server/embedded_web_assets.cpp")
+set(EMBEDDED_ASSETS_CPP "${PROJECT_SOURCE_DIR}/src/server/embedded_web_assets.cpp")
+add_custom_command(
+    OUTPUT ${EMBEDDED_ASSETS_CPP}
+    COMMAND python3 "${PROJECT_SOURCE_DIR}/scripts/embed_web_assets.py"
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    DEPENDS "${PROJECT_SOURCE_DIR}/scripts/embed_web_assets.py"
+    COMMENT "Embedding web/dist/ into the server binary"
+    VERBATIM
+)
+list(APPEND SERVER_SOURCES ${EMBEDDED_ASSETS_CPP})
+
 add_executable(optic-trigeminal ${KERNEL_SOURCES} ${CLINICAL_SOURCES} ${SERVER_SOURCES} ${HEADERS})
 
 target_include_directories(optic-trigeminal PRIVATE 

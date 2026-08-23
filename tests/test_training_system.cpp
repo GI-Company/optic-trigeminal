@@ -154,7 +154,7 @@ void test_analytics_store() {
     std::cout << "✓ AI recommendation recorded" << std::endl;
     
     // Record a nurse action
-    store.record_nurse_action("SESSION_001", "apply_oxygen", "NURSE_001", 180, true);
+    store.record_nurse_action("SESSION_001", "apply_oxygen", "NURSE_001", 180, true, "CORRECT", 0.10f);
     std::cout << "✓ Nurse action recorded" << std::endl;
     
     // Verify events
@@ -193,8 +193,8 @@ void test_full_scenario_walkthrough() {
         // Simulate nurse action at minute 10
         if (minute == 10) {
             runtime.accept_action("initiate_sepsis_bundle", "NURSE_002");
-            analytics.record_nurse_action(session_id, "initiate_sepsis_bundle", "NURSE_002", 
-                                         minute * 60, true);
+            analytics.record_nurse_action(session_id, "initiate_sepsis_bundle", "NURSE_002",
+                                         minute * 60, true, "CORRECT", 0.10f);
             std::cout << "[Min " << minute << "] Nurse action: initiate_sepsis_bundle" << std::endl;
         }
         

@@ -284,6 +284,13 @@ export interface TrainingReport {
   timestamp: Date;
 }
 
+export interface TrainingNoteDraft {
+  session_id: string;
+  scenario_id: string;
+  draft_content: string;
+  generated_at: string;
+}
+
 // INSTRUCTOR / COHORTS (mass education adoption) ============================
 // Matches CohortManager (include/cohort_manager.h) and the
 // handle_instructor_* handlers in src/server/http_server.cpp.

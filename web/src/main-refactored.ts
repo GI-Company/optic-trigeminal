@@ -561,6 +561,25 @@ function renderTrainingDebrief(): void {
     report: state.lastTrainingReport,
     onDone: () => {
       router.navigate('/dashboard');
+    },
+    onGenerateNoteDraft: async (sessionId: string) => {
+      try {
+        const draft = await apiClient.generateTrainingNoteDraft(sessionId);
+        return draft.draft_content;
+      } catch (err: any) {
+        showToast(err?.message || 'Failed to generate note draft', 'error');
+        throw err;
+      }
+    },
+    onSignNote: async (sessionId: string, content: string, wasEdited: boolean) => {
+      try {
+        const result = await apiClient.signTrainingNote(sessionId, content, wasEdited);
+        showToast('Note signed and submitted', 'success');
+        return new Date(result.signed_at).toLocaleTimeString();
+      } catch (err: any) {
+        showToast(err?.message || 'Failed to sign note', 'error');
+        throw err;
+      }
     }
   });
   debrief.mount(app);

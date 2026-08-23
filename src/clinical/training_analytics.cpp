@@ -105,11 +105,90 @@ void TrainingAnalyticsStore::record_recommendation(const std::string& session_id
     append_event(evt);
 }
 
+void TrainingAnalyticsStore::record_session_start(const std::string& session_id,
+                                                  const std::string& scenario_id,
+                                                  const std::string& nurse_id,
+                                                  int age, const std::string& sex,
+                                                  const std::string& diagnosis,
+                                                  int hr, int rr, int spo2,
+                                                  int bp_sys, int bp_dia, float temp) {
+    // Free-form patient fields (diagnosis, sex) can't safely fit the flat
+    // "key=value" convention record_nurse_action etc use -- nested JSON
+    // instead, relying on TrainingEvent::to_json_string's json::escape fix
+    // for the outer event_data string.
+    json patient = json::object();
+    patient["nurse_id"] = json(nurse_id);
+    patient["age"] = json(static_cast<double>(age));
+    patient["sex"] = json(sex);
+    patient["diagnosis"] = json(diagnosis);
+    patient["hr"] = json(static_cast<double>(hr));
+    patient["rr"] = json(static_cast<double>(rr));
+    patient["spo2"] = json(static_cast<double>(spo2));
+    patient["bp_sys"] = json(static_cast<double>(bp_sys));
+    patient["bp_dia"] = json(static_cast<double>(bp_dia));
+    patient["temp"] = json(static_cast<double>(temp));
+
+    TrainingEvent evt;
+    evt.event_id = generate_event_id();
+    evt.session_id = session_id;
+    evt.scenario_id = scenario_id;
+    evt.timestamp = std::time(nullptr);
+    evt.event_type = "SESSION_START";
+    evt.elapsed_seconds = 0;
+    evt.event_data = patient.dump();
+
+    append_event(evt);
+}
+
+void TrainingAnalyticsStore::record_note_drafted(const std::string& session_id,
+                                                const std::string& scenario_id,
+                                                int elapsed_sec,
+                                                const std::string& ai_draft_content) {
+    json data = json::object();
+    data["content"] = json(ai_draft_content);
+
+    TrainingEvent evt;
+    evt.event_id = generate_event_id();
+    evt.session_id = session_id;
+    evt.scenario_id = scenario_id;
+    evt.timestamp = std::time(nullptr);
+    evt.event_type = "NOTE_DRAFTED";
+    evt.elapsed_seconds = elapsed_sec;
+    evt.event_data = data.dump();
+
+    append_event(evt);
+}
+
+void TrainingAnalyticsStore::record_note_signed(const std::string& session_id,
+                                               const std::string& scenario_id,
+                                               const std::string& nurse_id,
+                                               int elapsed_sec,
+                                               const std::string& final_content,
+                                               bool was_edited) {
+    json data = json::object();
+    data["nurse_id"] = json(nurse_id);
+    data["content"] = json(final_content);
+    data["was_edited"] = json(was_edited);
+
+    TrainingEvent evt;
+    evt.event_id = generate_event_id();
+    evt.session_id = session_id;
+    evt.scenario_id = scenario_id;
+    evt.timestamp = std::time(nullptr);
+    evt.event_type = "NOTE_SIGNED";
+    evt.elapsed_seconds = elapsed_sec;
+    evt.event_data = data.dump();
+
+    append_event(evt);
+}
+
 void TrainingAnalyticsStore::record_nurse_action(const std::string& session_id,
                                                 const std::string& action,
                                                 const std::string& nurse_id,
                                                 int elapsed_sec,
-                                                bool was_timely) {
+                                                bool was_timely,
+                                                const std::string& grade,
+                                                float delta) {
     TrainingEvent evt;
     evt.event_id = generate_event_id();
     evt.session_id = session_id;
@@ -117,8 +196,9 @@ void TrainingAnalyticsStore::record_nurse_action(const std::string& session_id,
     evt.timestamp = std::time(nullptr);
     evt.event_type = "NURSE_ACTION";
     evt.elapsed_seconds = elapsed_sec;
-    evt.event_data = "action=" + action + " nurse_id=" + nurse_id + " timely=" + std::string(was_timely ? "true" : "false");
-    
+    evt.event_data = "action=" + action + " nurse_id=" + nurse_id + " timely=" + std::string(was_timely ? "true" : "false")
+                    + " grade=" + grade + " delta=" + std::to_string(delta);
+
     append_event(evt);
 }
 

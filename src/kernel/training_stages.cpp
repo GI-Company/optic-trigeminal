@@ -200,7 +200,7 @@ void TrainingController::run_stage_3_self_knowledge(const std::vector<ProcessedD
             optic_trigeminal->add_concept(record.record_id, "self_reflection", input_emb, "self_knowledge");
             
             // Link to similar concepts
-            auto related = optic_trigeminal->find_related_concepts(input_emb, 3);
+            auto related = optic_trigeminal->find_related_concepts(input_emb, record.input_text, 3);
             for (const auto& rel : related) {
                 optic_trigeminal->link_concepts(record.record_id, rel.first, 0.5f);
             }

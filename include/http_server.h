@@ -166,6 +166,27 @@ private:
         int duration_seconds,
         float final_score_0_to_1,
         const std::vector<std::string>& expected_action_names);
+
+    // Deterministic, data-driven SBAR-shaped reflection note built only
+    // from real session data (never a generative/LLM call, so it can only
+    // ever state things the event log actually contains) -- a separate
+    // fold over `events` from build_training_report_json's rather than
+    // sharing code with it, to avoid touching an already-verified
+    // function for a fairly different output shape (prose vs a JSON
+    // transcript array). Prefers the SESSION_START snapshot's actual
+    // (possibly randomized) patient over `fallback_patient` when present.
+    std::string build_training_note_draft_json(
+        const std::vector<TrainingEvent>& events,
+        const std::string& session_id,
+        const std::string& scenario_id,
+        const std::string& scenario_title,
+        const std::string& outcome,
+        int duration_seconds,
+        const std::vector<std::string>& expected_action_names,
+        const ScenarioDefinition::SyntheticPatient& fallback_patient);
+    Response handle_training_note_draft(const Request& req);
+    Response handle_training_note_sign(const Request& req);
+
     Response handle_learn(const Request& req);
     Response handle_health(const Request& req);
     Response handle_observations(const Request& req);

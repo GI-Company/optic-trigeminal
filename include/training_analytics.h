@@ -6,6 +6,7 @@
 #include <memory>
 #include <fstream>
 #include <sstream>
+#include "json_lite.h"
 
 struct TrainingEvent {
     std::string event_id;
@@ -15,16 +16,23 @@ struct TrainingEvent {
     std::string event_type;
     std::string event_data;
     int elapsed_seconds;
-    
+
     std::string to_json_string() const {
+        // event_data was never escaped -- harmless while every value was a
+        // synthetic space-free "key=value" token (nothing to escape), but a
+        // real hazard once free text (e.g. a signed training note) needs to
+        // go through this same append-only log: an embedded quote or
+        // newline would have corrupted the NDJSON record. json::escape is
+        // the same escaping every other JSON value in this codebase goes
+        // through via Json::dump().
         std::stringstream ss;
         ss << "{\n";
-        ss << "  \"event_id\": \"" << event_id << "\",\n";
-        ss << "  \"session_id\": \"" << session_id << "\",\n";
-        ss << "  \"scenario_id\": \"" << scenario_id << "\",\n";
+        ss << "  \"event_id\": \"" << json::escape(event_id) << "\",\n";
+        ss << "  \"session_id\": \"" << json::escape(session_id) << "\",\n";
+        ss << "  \"scenario_id\": \"" << json::escape(scenario_id) << "\",\n";
         ss << "  \"timestamp\": " << static_cast<long>(timestamp) << ",\n";
-        ss << "  \"event_type\": \"" << event_type << "\",\n";
-        ss << "  \"event_data\": \"" << event_data << "\",\n";
+        ss << "  \"event_type\": \"" << json::escape(event_type) << "\",\n";
+        ss << "  \"event_data\": \"" << json::escape(event_data) << "\",\n";
         ss << "  \"elapsed_seconds\": " << elapsed_seconds << ",\n";
         ss << "  \"provenance\": {\n";
         ss << "    \"mode\": \"TRAINING\",\n";
@@ -65,14 +73,42 @@ public:
     bool initialize();
     
     void append_event(const TrainingEvent& event);
-    void record_vitals_snapshot(const std::string& session_id, const std::string& scenario_id, 
+    // Snapshots the actual (possibly randomized -- see
+    // ScenarioLibrary::randomize_case) synthetic patient a session started
+    // with, so a report/note rebuilt later from persisted events can show
+    // what the nurse actually saw instead of get_scenario_definition_by_id()'s
+    // canonical template.
+    void record_session_start(const std::string& session_id, const std::string& scenario_id,
+                             const std::string& nurse_id, int age, const std::string& sex,
+                             const std::string& diagnosis, int hr, int rr, int spo2,
+                             int bp_sys, int bp_dia, float temp);
+    void record_vitals_snapshot(const std::string& session_id, const std::string& scenario_id,
                                int elapsed_sec, int hr, int bp_sys, int spo2, float temp);
     void record_recommendation(const std::string& session_id, const std::string& rec_id, 
                               const std::string& rec_text, int elapsed_sec);
-    void record_nurse_action(const std::string& session_id, const std::string& action, 
-                           const std::string& nurse_id, int elapsed_sec, bool was_timely);
-    void record_failure_condition(const std::string& session_id, const std::string& failure_name, 
+    // `grade` is the ActionGrade enum's name as a string (e.g. "CORRECT",
+    // "CONTRAINDICATED") and `delta` the real score_delta that was applied
+    // -- was_timely is kept, derived as grade being CORRECT or
+    // PARTIALLY_CORRECT, so calculate_session_metrics's existing
+    // incorrect_actions counter (which only reads timely=) keeps working
+    // unmodified.
+    void record_nurse_action(const std::string& session_id, const std::string& action,
+                           const std::string& nurse_id, int elapsed_sec, bool was_timely,
+                           const std::string& grade, float delta);
+    void record_failure_condition(const std::string& session_id, const std::string& failure_name,
                                  int elapsed_sec);
+    // Audit trail of what the AI actually drafted, kept even if the nurse
+    // heavily edits before signing -- append-only, like every other event
+    // here, so signing isn't a mutation of this record.
+    void record_note_drafted(const std::string& session_id, const std::string& scenario_id,
+                            int elapsed_sec, const std::string& ai_draft_content);
+    // "The" note for a session is the latest NOTE_SIGNED event by
+    // timestamp -- signing more than once is allowed (event-sourced, not
+    // overwritten), consistent with how every other record in this store
+    // is a fold over immutable events rather than in-place mutation.
+    void record_note_signed(const std::string& session_id, const std::string& scenario_id,
+                           const std::string& nurse_id, int elapsed_sec,
+                           const std::string& final_content, bool was_edited);
     void record_session_complete(const std::string& session_id, const std::string& scenario_id,
                                 const std::string& nurse_id, const std::string& outcome,
                                 int total_duration, float final_score);

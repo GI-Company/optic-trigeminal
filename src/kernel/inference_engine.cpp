@@ -109,12 +109,20 @@ bool NativeInferenceEngine::initialize_with_training_data(const std::vector<Trai
         const auto& example = examples[i];
         learn_from_example(example);
         
+        // Truncated duplicate of the full-text input node learn_from_example
+        // already added above (same underlying question, just cut to 50
+        // chars under an opaque id instead of the full text) -- kept only
+        // for the every-50th link_concepts chain below, so marked
+        // query-only like its sibling rather than removed outright, in
+        // case something else walks this "concept_N" chain via
+        // traverse_path/bfs_traverse.
         Embedding input_emb = optic_embedder->embed(example.input);
         optic_trigeminal->add_concept(
             "concept_" + std::to_string(idx),
             example.input.substr(0, std::min((size_t)50, example.input.length())),
             input_emb,
-            example.domain.empty() ? "general" : example.domain
+            example.domain.empty() ? "general" : example.domain,
+            true
         );
         
         if (idx > 0 && idx % 50 == 0) {
@@ -248,7 +256,7 @@ InferenceResponse NativeInferenceEngine::native_infer(const std::string& prompt,
     response.type = decoder_output.generation_method;
     response.related_concepts = decoder_output.provenance;
     
-    auto related = optic_trigeminal->find_related_concepts(prompt_emb, 5);
+    auto related = optic_trigeminal->find_related_concepts(prompt_emb, prompt, 5);
     for (const auto& [concept, sim] : related) {
         response.related_concepts.push_back(concept);
     }
@@ -284,7 +292,7 @@ InferenceResponse NativeInferenceEngine::enhanced_infer(const std::string& promp
     
     // RAG from OpticTrigeminal local knowledge graph
     std::string enhanced_context = "Knowledge Graph Context:\\n";
-    auto related = optic_trigeminal->find_related_concepts(prompt_emb, 5);
+    auto related = optic_trigeminal->find_related_concepts(prompt_emb, prompt, 5);
     for (const auto& [concept, sim] : related) {
         response.related_concepts.push_back(concept);
         enhanced_context += "- " + concept + "\\n";
@@ -331,8 +339,11 @@ void NativeInferenceEngine::learn_from_example(const TrainingExample& example) {
     Embedding input_emb = optic_embedder->embed(example.input);
     Embedding output_emb = optic_embedder->embed(example.output);
     
-    optic_trigeminal->add_concept(example.input, example.input, input_emb, example.domain);
-    optic_trigeminal->add_concept(example.output, example.output, output_emb, example.domain);
+    // input node is marked query-only (see GraphNode::is_query_only) --
+    // without it, a live query closely resembling a stored question would
+    // outrank that question's own paired answer in retrieval.
+    optic_trigeminal->add_concept(example.input, example.input, input_emb, example.domain, true);
+    optic_trigeminal->add_concept(example.output, example.output, output_emb, example.domain, false);
     optic_trigeminal->add_edge(example.input, example.output, 1.0f, "training");
     
     if (example.is_good) {
@@ -490,7 +501,7 @@ SafetyCategory NativeInferenceEngine::get_safety_category(const std::string& tex
 
 std::vector<std::pair<std::string, float>> NativeInferenceEngine::find_related_concepts(const std::string& text) {
     Embedding emb = optic_embedder->embed(text);
-    return optic_trigeminal->find_related_concepts(emb, 10);
+    return optic_trigeminal->find_related_concepts(emb, text, 10);
 }
 
 std::string NativeInferenceEngine::route_to_specializer(const Intent& intent, const std::string& prompt) {
@@ -595,7 +606,7 @@ std::vector<std::string> NativeInferenceEngine::build_reasoning_chain(const std:
     }
     
     chain.push_back("[GRAPH] Traversing knowledge graph...");
-    auto concepts = optic_trigeminal->find_related_concepts(prompt_emb, 5);
+    auto concepts = optic_trigeminal->find_related_concepts(prompt_emb, prompt, 5);
     for (const auto& [concept, weight] : concepts) {
         chain.push_back("[CONCEPT] " + concept + " (relevance: " + std::to_string(weight).substr(0, 4) + ")");
     }

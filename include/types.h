@@ -76,9 +76,31 @@ struct GraphNode {
     std::map<std::string, float> attributes;
     float importance;
     int access_count;
-    
+    // Term -> count within `label`, populated once when the node is added
+    // (see OpticTrigeminal::add_concept). Backs a real, training-free
+    // TF-IDF lexical similarity signal for retrieval -- see
+    // OpticTrigeminal::find_k_neighbors -- since OpticEmbedder's neural
+    // embedding is randomly initialized and never actually trained before
+    // being used live (nothing loads a trained checkpoint into it at
+    // startup), so cosine similarity over it alone is closer to noise
+    // than genuine semantic relevance at corpus scale.
+    std::map<std::string, int> term_counts;
+    // True only for a training example's *question* node (see
+    // NativeInferenceEngine::learn_from_example, which adds one node for
+    // example.input and one for example.output, linked by a real edge).
+    // A live user query naturally resembles a stored *question* more than
+    // its answer does, so without this flag a query nearly identical to
+    // some corpus question would rank that question's own node above the
+    // node holding its actual answer -- confirmed live: "What is
+    // paracetamol poisoning?" against a corpus question "What is
+    // Paracetamol poisoning?" returned the question itself echoed back,
+    // not the answer. Excluded from find_k_neighbors whenever real query
+    // text is available (a stored question is never itself a useful
+    // answer to surface).
+    bool is_query_only = false;
+
     GraphNode() : importance(0.0f), access_count(0) {}
-    explicit GraphNode(const std::string& node_id) 
+    explicit GraphNode(const std::string& node_id)
         : id(node_id), importance(0.0f), access_count(0),
           embedding(EMBEDDING_DIM) {}
 };

@@ -62,7 +62,9 @@ Demo credentials (same password for every account): $DEMO_PASSWORD
 
 The sign-in screen's "Quick Demo Sign-In" buttons use these automatically.
 
-Frontend isn't started by this script. In another terminal:
-  cd web && npm run dev
-then open http://localhost:5173
+The frontend build is embedded directly in this binary (see
+include/embedded_web_assets.h) -- open http://localhost:8080 directly,
+no separate frontend dev server needed. (For active frontend development
+with hot-reload instead, cd web && npm run dev and use :5173 as before --
+that still works too.)
 EOF

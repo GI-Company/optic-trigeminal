@@ -22,6 +22,7 @@ private:
         int top_k = 3) const;
     
     std::vector<std::pair<std::string, float>> retrieve_active_concepts(
+        const std::string& prompt,
         const Embedding& embedding,
         int top_k = 5) const;
 

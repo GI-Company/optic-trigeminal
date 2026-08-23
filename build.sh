@@ -2,7 +2,22 @@
 
 set -e
 
+cd "$(dirname "$0")"
+
 echo "Building OpticTrigeminal..."
+
+# The frontend build is embedded directly into the server binary (see
+# include/embedded_web_assets.h) so the compiled server is a genuinely
+# single, self-contained executable -- no web/dist/ directory has to
+# travel with it. Build the frontend first if it hasn't been built yet,
+# then regenerate the embedded-assets source from it.
+if [ ! -d web/dist ]; then
+    echo "No web/dist/ found -- building frontend first..."
+    (cd web && npm install --silent && npm run build)
+fi
+echo "Embedding frontend build into the server binary..."
+python3 scripts/embed_web_assets.py
+
 mkdir -p build
 
 cd build
@@ -47,6 +62,7 @@ clang++ -std=c++17 -O3 -march=native -I../include \
     ../src/clinical/training_scenario.cpp \
     ../src/clinical/training_analytics.cpp \
     ../src/server/http_server.cpp \
+    ../src/server/embedded_web_assets.cpp \
     ../src/kernel/groq_client.cpp \
     ../src/server/acmk_api_handler.cpp \
     ../src/kernel/acmk_planes.cpp \

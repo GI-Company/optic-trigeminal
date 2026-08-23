@@ -14,7 +14,10 @@
 #include <cstdlib>
 #include "fhir_client.h"
 #include "crypto_utils.h"
+#include "embedded_web_assets.h"
 #include <chrono>
+#include <cstdint>
+#include <iomanip>
 
 namespace fs = std::filesystem;
 
@@ -62,6 +65,17 @@ bool acmk_role_string_to_role(const std::string& s, Role& out) {
   if (s == "it") { out = Role::IT; return true; }
   if (s == "instructor") { out = Role::INSTRUCTOR; return true; }
   return false;
+}
+
+std::string action_grade_to_string(ActionGrade grade) {
+  switch (grade) {
+    case ActionGrade::CORRECT: return "correct";
+    case ActionGrade::PARTIALLY_CORRECT: return "partially_correct";
+    case ActionGrade::PREMATURE: return "premature";
+    case ActionGrade::INCORRECT: return "incorrect";
+    case ActionGrade::CONTRAINDICATED: return "contraindicated";
+  }
+  return "partially_correct";
 }
 
 // The frontend (web/src/api/types.ts: TrainingScenario, consumed by
@@ -272,6 +286,8 @@ void HTTPServer::register_routes() {
     routes["/api/training/list"] = [this](const Request& r) { return handle_training_list(r); };
     routes["/api/training/analytics"] = [this](const Request& r) { return handle_training_analytics(r); };
     routes["/api/training/report"] = [this](const Request& r) { return handle_training_report(r); };
+    routes["/api/training/note/draft"] = [this](const Request& r) { return handle_training_note_draft(r); };
+    routes["/api/training/note/sign"] = [this](const Request& r) { return handle_training_note_sign(r); };
     routes["/health"] = [this](const Request& req) { return handle_health(req); };
     
     auto convert_request = [](const Request& http_req, AuthToken* token) -> ACMKRequest {
@@ -1714,7 +1730,22 @@ HTTPServer::Response HTTPServer::handle_training_start(const Request& req) {
     } else {
         return Response(400, "{\"error\": \"Unknown scenario_id\"}");
     }
-    
+
+    // Randomized per-session (age + a conservative baseline-vitals jitter,
+    // never the grading rubric itself -- see randomize_case) so the same
+    // scenario doesn't play out identically every run. Seeded from the
+    // same CSPRNG auth tokens already use (Crypto::random_hex), not
+    // time(nullptr) -- two sessions started within the same wall-clock
+    // second (easy to hit back-to-back, e.g. an instructor demoing
+    // several quick sessions) would otherwise collide on an identical
+    // seed and produce byte-identical "randomized" cases.
+    uint32_t seed = 0;
+    {
+        std::string entropy = Crypto::random_hex(4);
+        seed = static_cast<uint32_t>(std::stoul(entropy, nullptr, 16));
+    }
+    scenario_def = ScenarioLibrary::randomize_case(scenario_def, seed);
+
     TrainingUserSession user_session;
     user_session.runtime = std::make_unique<ScenarioRuntime>(scenario_def);
     auto session = user_session.runtime->get_session_record();
@@ -1725,6 +1756,14 @@ HTTPServer::Response HTTPServer::handle_training_start(const Request& req) {
     user_session.scenario_title = scenario_def.title;
     for (const auto& exp : scenario_def.expected_actions) {
         user_session.expected_action_names.push_back(exp.action_name);
+    }
+
+    if (analytics_store_) {
+        const auto& sp0 = scenario_def.synthetic_patient;
+        const auto& v0 = sp0.baseline_vitals;
+        analytics_store_->record_session_start(user_session.training_session_id, scenario_def.scenario_id,
+                                               nurse_id, sp0.age, sp0.sex, sp0.diagnosis,
+                                               v0.hr, v0.rr, v0.spo2, v0.bp_sys, v0.bp_dia, v0.temp);
     }
 
     {
@@ -1878,21 +1917,30 @@ HTTPServer::Response HTTPServer::handle_training_action(const Request& req) {
 
     ScenarioVitals before = active_scenario_->get_current_vitals();
     active_scenario_->accept_action(action, nurse_id);
+
+    ActionEvaluation eval = active_scenario_->evaluate_action_correctness(action);
+    if (eval.triggers_complication) {
+        active_scenario_->arm_complication(eval.complication_name);
+    }
+    // Complication (if any) and the action's own physiology curve both
+    // start contributing as of this action, so recompute once more before
+    // reading vitals back -- otherwise "after" would still reflect last
+    // tick's overlay, not this action's.
+    active_scenario_->tick(0);
     ScenarioVitals after = active_scenario_->get_current_vitals();
 
-    std::string feedback;
-    bool is_correct = active_scenario_->evaluate_action_correctness(action, feedback);
+    bool was_timely = (eval.grade == ActionGrade::CORRECT || eval.grade == ActionGrade::PARTIALLY_CORRECT);
+    std::string grade_str = action_grade_to_string(eval.grade);
 
-    // Record action with correctness flag for AI learning
     if (analytics_store_) {
         analytics_store_->record_nurse_action(user_session.training_session_id, action, nurse_id,
-                                             active_scenario_->elapsed_seconds(), is_correct);
+                                             active_scenario_->elapsed_seconds(), was_timely,
+                                             grade_str, eval.score_delta);
     }
 
     // TrainingMode.ts renders this as (session.score * 100).toFixed(0) + '%',
     // so score is a 0..1 fraction, not a raw point total.
-    float score_delta = is_correct ? 0.1f : -0.05f;
-    user_session.score = std::max(0.0f, std::min(1.0f, user_session.score + score_delta));
+    user_session.score = std::max(0.0f, std::min(1.0f, user_session.score + eval.score_delta));
     user_session.actions_taken += 1;
 
     // Shape matches TrainingActionResponse (web/src/api/types.ts), which
@@ -1903,14 +1951,14 @@ HTTPServer::Response HTTPServer::handle_training_action(const Request& req) {
     body << "{\n";
     body << "  \"training_session_id\": \"" << json_escape(user_session.training_session_id) << "\",\n";
     body << "  \"action\": \"" << json_escape(action) << "\",\n";
-    body << "  \"status\": \"" << (is_correct ? "correct" : "incorrect") << "\",\n";
-    body << "  \"effectiveness\": " << (is_correct ? 1.0 : 0.0) << ",\n";
+    body << "  \"status\": \"" << grade_str << "\",\n";
+    body << "  \"effectiveness\": " << (was_timely ? 1.0 : 0.0) << ",\n";
     body << "  \"patient_response\": {\n";
     body << "    \"spo2_change\": " << (after.spo2 - before.spo2) << ",\n";
     body << "    \"hr_change\": " << (after.hr - before.hr) << ",\n";
-    body << "    \"feedback\": \"" << json_escape(feedback) << "\"\n";
+    body << "    \"feedback\": \"" << json_escape(eval.feedback) << "\"\n";
     body << "  },\n";
-    body << "  \"score_delta\": " << score_delta << ",\n";
+    body << "  \"score_delta\": " << eval.score_delta << ",\n";
     body << "  \"cumulative_score\": " << user_session.score << ",\n";
     body << "  \"timestamp\": \"" << current_timestamp() << "\"\n";
     body << "}\n";
@@ -2145,6 +2193,184 @@ std::string HTTPServer::build_training_report_json(
     body << "}\n";
 
     return body.str();
+}
+
+std::string HTTPServer::build_training_note_draft_json(
+    const std::vector<TrainingEvent>& events,
+    const std::string& session_id,
+    const std::string& scenario_id,
+    const std::string& scenario_title,
+    const std::string& outcome,
+    int duration_seconds,
+    const std::vector<std::string>& expected_action_names,
+    const ScenarioDefinition::SyntheticPatient& fallback_patient) {
+
+    int age = fallback_patient.age;
+    std::string sex = fallback_patient.sex;
+    std::string diagnosis = fallback_patient.diagnosis;
+    int hr = fallback_patient.baseline_vitals.hr, rr = fallback_patient.baseline_vitals.rr,
+        spo2 = fallback_patient.baseline_vitals.spo2, bp_sys = fallback_patient.baseline_vitals.bp_sys,
+        bp_dia = fallback_patient.baseline_vitals.bp_dia;
+    float temp = fallback_patient.baseline_vitals.temp;
+
+    // Prefer the actual (possibly randomized) patient this session started
+    // with over the canonical scenario template, so a note for a
+    // randomized case shows what the nurse actually saw.
+    for (const auto& evt : events) {
+        if (evt.event_type != "SESSION_START") continue;
+        try {
+            json data = json::parse(evt.event_data);
+            if (data.contains("age")) age = static_cast<int>(data.at("age").as_double(age));
+            if (data.contains("sex")) sex = data.at("sex").as_string(sex);
+            if (data.contains("diagnosis")) diagnosis = data.at("diagnosis").as_string(diagnosis);
+            if (data.contains("hr")) hr = static_cast<int>(data.at("hr").as_double(hr));
+            if (data.contains("rr")) rr = static_cast<int>(data.at("rr").as_double(rr));
+            if (data.contains("spo2")) spo2 = static_cast<int>(data.at("spo2").as_double(spo2));
+            if (data.contains("bp_sys")) bp_sys = static_cast<int>(data.at("bp_sys").as_double(bp_sys));
+            if (data.contains("bp_dia")) bp_dia = static_cast<int>(data.at("bp_dia").as_double(bp_dia));
+            if (data.contains("temp")) temp = static_cast<float>(data.at("temp").as_double(temp));
+        } catch (const std::exception&) {
+            // Malformed/missing snapshot -- fall back to the canonical
+            // scenario template already loaded above.
+        }
+        break;
+    }
+
+    std::vector<std::pair<int, std::string>> correct_actions;  // elapsed_sec, label
+    std::vector<std::string> missed_windows;
+    std::set<std::string> performed;
+    for (const auto& evt : events) {
+        if (evt.event_type == "NURSE_ACTION") {
+            std::string action_name = parse_event_data_field(evt.event_data, "action");
+            bool is_correct = parse_event_data_field(evt.event_data, "timely") == "true";
+            if (action_name.empty()) continue;
+            if (is_correct && performed.insert(action_name).second) {
+                correct_actions.push_back({evt.elapsed_seconds, action_label(action_name)});
+            }
+        } else if (evt.event_type == "FAILURE_TRIGGERED") {
+            missed_windows.push_back(evt.event_data);
+        }
+    }
+    std::vector<std::string> not_performed;
+    for (const auto& expected : expected_action_names) {
+        if (performed.count(expected) == 0) not_performed.push_back(action_label(expected));
+    }
+
+    std::ostringstream note;
+    note << "=== SIMULATION TRAINING NOTE -- NOT FOR CLINICAL USE ===\n\n";
+    note << "SITUATION\n";
+    note << "Completed \"" << scenario_title << "\" training scenario. Outcome: " << outcome
+         << ". Duration: " << (duration_seconds / 60) << "m " << (duration_seconds % 60) << "s.\n\n";
+    note << "BACKGROUND\n";
+    note << "Simulated patient, age " << age << ", " << sex << ". " << diagnosis << ".\n";
+    note << "Baseline vitals: HR " << hr << ", RR " << rr << ", SpO2 " << spo2 << "%, BP "
+         << bp_sys << "/" << bp_dia << ", Temp " << std::fixed << std::setprecision(1) << temp << "C.\n\n";
+    note << "ASSESSMENT\n";
+    if (correct_actions.empty()) {
+        note << "No correct interventions recorded this session.\n";
+    } else {
+        for (const auto& [t, label] : correct_actions) {
+            note << "- Performed " << label << " at " << t << "s.\n";
+        }
+    }
+    for (const auto& mw : missed_windows) {
+        note << "- Missed critical window: " << mw << "\n";
+    }
+    note << "\nRECOMMENDATION (follow-up learning focus)\n";
+    if (not_performed.empty()) {
+        note << "All expected interventions for this scenario were performed.\n";
+    } else {
+        for (const auto& na : not_performed) {
+            note << "- Review: " << na << " was not performed during this session.\n";
+        }
+    }
+
+    json out = json::object();
+    out["session_id"] = json(session_id);
+    out["scenario_id"] = json(scenario_id);
+    out["draft_content"] = json(note.str());
+    out["generated_at"] = json(current_timestamp());
+    return out.dump();
+}
+
+HTTPServer::Response HTTPServer::handle_training_note_draft(const Request& req) {
+    AuthToken* token = g_auth_manager->get_token(req.auth_token);
+    if (!token) return Response(401, "{\"error\": \"Unauthorized\"}");
+    if (!analytics_store_) return Response(500, "{\"error\": \"Analytics store not initialized\"}");
+
+    std::string session_id = req.query_params.count("session_id") ? req.query_params.at("session_id") : "";
+    if (session_id.empty()) return Response(400, "{\"error\": \"Missing required parameter: session_id\"}");
+    if (!analytics_store_->session_exists(session_id)) return Response(404, "{\"error\": \"Session not found\"}");
+
+    // nurse_id/outcome are both only populated by the SESSION_COMPLETE
+    // event (calculate_session_metrics), so an incomplete session always
+    // has an empty nurse_id too -- check completeness first, or every
+    // incomplete session reports a misleading 403 "Forbidden" (nurse_id
+    // "" != token->user_id) instead of the real "not yet complete" state.
+    TrainingMetrics metrics = analytics_store_->calculate_session_metrics(session_id);
+    if (metrics.outcome.empty()) return Response(400, "{\"error\": \"Session is not yet complete\"}");
+    // Drafting/signing is an act of authorship, not review -- owner-only,
+    // stricter than handle_training_report's owner-or-instructor/admin ACL.
+    if (metrics.nurse_id != token->user_id) return Response(403, "{\"error\": \"Forbidden\"}");
+
+    ScenarioDefinition scenario_def = get_scenario_definition_by_id(metrics.scenario_id);
+    std::vector<std::string> expected_action_names;
+    for (const auto& exp : scenario_def.expected_actions) expected_action_names.push_back(exp.action_name);
+
+    auto events = analytics_store_->get_session_events(session_id);
+    std::string draft_json = build_training_note_draft_json(
+        events, session_id, metrics.scenario_id, scenario_def.title, metrics.outcome,
+        metrics.total_duration_seconds, expected_action_names, scenario_def.synthetic_patient);
+
+    std::string draft_content;
+    try {
+        json parsed = json::parse(draft_json);
+        draft_content = parsed.at("draft_content").as_string("");
+    } catch (const std::exception&) {
+        return Response(500, "{\"error\": \"Failed to build draft\"}");
+    }
+    analytics_store_->record_note_drafted(session_id, metrics.scenario_id, metrics.total_duration_seconds, draft_content);
+
+    return Response(200, draft_json);
+}
+
+HTTPServer::Response HTTPServer::handle_training_note_sign(const Request& req) {
+    AuthToken* token = g_auth_manager->get_token(req.auth_token);
+    if (!token) return Response(401, "{\"error\": \"Unauthorized\"}");
+    if (!analytics_store_) return Response(500, "{\"error\": \"Analytics store not initialized\"}");
+
+    try {
+        json parsed = json::parse(req.body);
+        std::string session_id = parsed.contains("session_id") ? parsed.at("session_id").as_string("") : "";
+        std::string content = parsed.contains("content") ? parsed.at("content").as_string("") : "";
+
+        if (session_id.empty() || content.empty()) {
+            return Response(400, "{\"error\": \"session_id and content are required\"}");
+        }
+        if (!analytics_store_->session_exists(session_id)) return Response(404, "{\"error\": \"Session not found\"}");
+
+        // Same ordering fix as handle_training_note_draft: outcome-empty
+        // must be checked before ownership, since nurse_id is also only
+        // populated by the same SESSION_COMPLETE event.
+        TrainingMetrics metrics = analytics_store_->calculate_session_metrics(session_id);
+        if (metrics.outcome.empty()) return Response(400, "{\"error\": \"Session is not yet complete\"}");
+        if (metrics.nurse_id != token->user_id) return Response(403, "{\"error\": \"Forbidden\"}");
+
+        // was_edited is informational only (audit trail) -- the frontend
+        // doesn't currently distinguish, so this just records whatever the
+        // client sends, defaulting false rather than guessing.
+        bool was_edited = parsed.contains("was_edited") && parsed.at("was_edited").as_bool(false);
+
+        analytics_store_->record_note_signed(session_id, metrics.scenario_id, token->user_id,
+                                            metrics.total_duration_seconds, content, was_edited);
+
+        std::ostringstream body;
+        body << "{\"status\":\"signed\",\"session_id\":\"" << json_escape(session_id)
+             << "\",\"signed_at\":\"" << current_timestamp() << "\"}";
+        return Response(200, body.str());
+    } catch (const std::exception&) {
+        return Response(400, "{\"error\": \"Invalid request body\"}");
+    }
 }
 
 HTTPServer::Response HTTPServer::handle_training_list(const Request& req) {
@@ -2501,25 +2727,37 @@ HTTPServer::Response HTTPServer::handle_static(const Request& req) {
     if (path.find("..") != std::string::npos) {
         return handle_not_found(req);
     }
-    
+
+    // Frontend build is embedded directly into this binary (see
+    // include/embedded_web_assets.h, scripts/embed_web_assets.py) so the
+    // compiled server is a genuinely single, self-contained executable --
+    // no web/dist/ directory has to travel with it. Falls back to reading
+    // web/dist/ off disk only if nothing embedded matches, so a local dev
+    // workflow that edits dist output without rebuilding the C++ binary
+    // still works.
+    if (const EmbeddedAsset* asset = find_embedded_web_asset(path)) {
+        std::string content(reinterpret_cast<const char*>(asset->data), asset->size);
+        return Response(200, content, get_mime_type(path));
+    }
+
     std::string full_path = "web/dist" + path;
-    
+
     // Check if file exists
     if (!fs::exists(full_path) || fs::is_directory(full_path)) {
         return handle_not_found(req);
     }
-    
+
     std::ifstream file(full_path, std::ios::binary);
     if (!file) {
         return handle_not_found(req);
     }
-    
+
     std::stringstream buffer;
     buffer << file.rdbuf();
     std::string content = buffer.str();
-    
+
     std::string mime_type = get_mime_type(full_path);
-    
+
     return Response(200, content, mime_type);
 }
 

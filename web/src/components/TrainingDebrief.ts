@@ -4,6 +4,8 @@ import type { TrainingReport } from '@api/types';
 export interface TrainingDebriefConfig {
   report: TrainingReport;
   onDone: () => void;
+  onGenerateNoteDraft: (sessionId: string) => Promise<string>;
+  onSignNote: (sessionId: string, content: string, wasEdited: boolean) => Promise<string>;
 }
 
 // The debrief -- what a nurse actually sees when a scenario ends. Until now
@@ -16,6 +18,11 @@ export interface TrainingDebriefConfig {
 // of the exercise; this is the screen that was missing.
 export class TrainingDebrief extends Component {
   private config: TrainingDebriefConfig;
+  private noteContent: string = '';
+  private originalDraft: string | null = null;
+  private loadingDraft = false;
+  private signedAt: string | null = null;
+  private signing = false;
 
   constructor(config: TrainingDebriefConfig) {
     super();
@@ -93,10 +100,45 @@ export class TrainingDebrief extends Component {
             }
           </div>
 
+          <div id="note-panel">
+            ${this.renderNotePanel()}
+          </div>
+
           <div class="flex justify-end">
             <button id="btn-debrief-done" class="btn-neon px-6 py-2.5 text-sm">Return to Dashboard</button>
           </div>
         </div>
+      </div>
+    `;
+  }
+
+  private renderNotePanel(): string {
+    return `
+      <div class="glass-card p-6">
+        <div class="flex items-center justify-between mb-1">
+          <h2 class="text-sm font-semibold text-white">Training Note</h2>
+          ${!this.signedAt ? `
+            <button id="btn-generate-draft" ${this.loadingDraft ? 'disabled' : ''} class="text-xs text-cyan-400 hover:text-cyan-300 disabled:opacity-50">
+              ${this.loadingDraft ? 'Generating...' : 'Generate AI Draft'}
+            </button>
+          ` : ''}
+        </div>
+        <p class="text-xs text-slate-500 mb-3">
+          ${this.signedAt
+            ? `Signed at ${this.escape(this.signedAt)}. This is a simulation training reflection, not a clinical record.`
+            : 'AI drafts a reflection note from this session\'s real event log. Review and edit before signing -- nothing is submitted until you sign.'}
+        </p>
+        <textarea id="note-textarea" rows="10"
+          class="w-full px-3 py-2 rounded-lg bg-slate-900/50 border border-white/10 text-white placeholder-slate-500 text-xs font-mono focus:outline-none focus:border-cyan-500/50 disabled:opacity-70"
+          placeholder="Click &quot;Generate AI Draft&quot; above, or write your own note."
+          ${this.signedAt ? 'disabled' : ''}>${this.escape(this.noteContent)}</textarea>
+        ${!this.signedAt ? `
+          <div class="flex justify-end mt-3">
+            <button id="btn-sign-note" ${this.signing ? 'disabled' : ''} class="btn-neon px-5 py-2 text-sm disabled:opacity-50">
+              ${this.signing ? 'Submitting...' : 'Sign & Submit Note'}
+            </button>
+          </div>
+        ` : ''}
       </div>
     `;
   }
@@ -125,9 +167,53 @@ export class TrainingDebrief extends Component {
     container.innerHTML = this.render();
     this.element = container;
     this.on('#btn-debrief-done', 'click', () => this.config.onDone());
+    this.attachNoteListeners();
   }
 
   unmount(): void {
     this.element = null;
+  }
+
+  private attachNoteListeners(): void {
+    this.on('#note-textarea', 'input', (e) => {
+      this.noteContent = (e.target as HTMLTextAreaElement).value;
+    });
+    this.on('#btn-generate-draft', 'click', async () => {
+      this.loadingDraft = true;
+      this.refreshNotePanel();
+      try {
+        const draft = await this.config.onGenerateNoteDraft(this.config.report.training_session_id);
+        this.noteContent = draft;
+        this.originalDraft = draft;
+      } catch {
+        // onGenerateNoteDraft's caller (main-refactored.ts) already
+        // surfaces a toast on failure -- nothing more to do here.
+      }
+      this.loadingDraft = false;
+      this.refreshNotePanel();
+    });
+    this.on('#btn-sign-note', 'click', async () => {
+      const content = this.noteContent.trim();
+      if (!content) return;
+      this.signing = true;
+      this.refreshNotePanel();
+      try {
+        const wasEdited = this.originalDraft !== null && this.originalDraft !== content;
+        this.signedAt = await this.config.onSignNote(this.config.report.training_session_id, content, wasEdited);
+      } catch {
+        // Caller surfaces the error toast; stay in the editable state so
+        // the nurse doesn't lose what they wrote.
+      }
+      this.signing = false;
+      this.refreshNotePanel();
+    });
+  }
+
+  private refreshNotePanel(): void {
+    const el = this.element?.querySelector('#note-panel');
+    if (el) {
+      el.innerHTML = this.renderNotePanel();
+      this.attachNoteListeners();
+    }
   }
 }

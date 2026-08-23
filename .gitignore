@@ -11,6 +11,10 @@ web/dist/
 *.o
 *.obj
 
+# Generated from web/dist/ by scripts/embed_web_assets.py at build time --
+# regenerated every build, not source.
+/src/server/embedded_web_assets.cpp
+
 # Toolchains / SDKs (fetched, not source)
 /emsdk/
 

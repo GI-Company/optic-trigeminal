@@ -96,23 +96,38 @@ private:
     std::map<std::pair<std::string, std::string>, float> edge_weights;
     int total_nodes;
     std::mt19937 rng;
-    
+
+    // TF-IDF document-frequency table across every node's label, updated
+    // incrementally in add_concept. See find_k_neighbors for why this
+    // exists alongside the neural embedding.
+    std::map<std::string, int> document_frequency_;
+    size_t total_documents_ = 0;
+
+    static std::map<std::string, int> tokenize_and_count(const std::string& text);
+    float lexical_similarity(const std::map<std::string, int>& query_terms, const GraphNode& node) const;
+
     VectorF shortest_path_bfs(const std::string& start, const std::string& end) const;
+    // query_text is optional (defaults to none): purely-internal callers
+    // that only have an embedding to compare (graph traversal between
+    // existing nodes, not a user query) fall back to pure neural cosine
+    // similarity unchanged. Callers that have the real query text should
+    // pass it -- that's what makes the TF-IDF blend below apply.
     std::vector<std::pair<std::string, float>> find_k_neighbors(
-        const Embedding& embedding, int k, float threshold = 0.3f) const;
-    
+        const Embedding& embedding, const std::string& query_text, int k, float threshold = 0.3f) const;
+
 public:
     OpticTrigeminal();
-    
-    void add_concept(const std::string& id, const std::string& label, 
-                     const Embedding& embedding, const std::string& type = "general");
+
+    void add_concept(const std::string& id, const std::string& label,
+                     const Embedding& embedding, const std::string& type = "general",
+                     bool is_query_only = false);
     void add_edge(const std::string& source, const std::string& target,
                   float weight = 1.0f, const std::string& type = "related");
     void reinforce_path(const Embedding& from, const Embedding& to, float reward);
     void link_concepts(const std::string& from_id, const std::string& to_id, float strength = 1.0f);
-    
+
     std::vector<std::pair<std::string, float>> find_related_concepts(
-        const Embedding& embedding, int top_k = 10) const;
+        const Embedding& embedding, const std::string& query_text, int top_k = 10) const;
     std::vector<std::string> traverse_path(const std::string& start, int depth = 3) const;
     std::vector<std::string> bfs_traverse(const std::string& start, int max_depth = 3) const;
     

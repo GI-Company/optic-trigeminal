@@ -23,7 +23,8 @@ import type {
   TemporalSnapshot,
   Cohort,
   ImportedCredential,
-  CohortDashboard
+  CohortDashboard,
+  TrainingNoteDraft
 } from './types';
 import { getWasmBridge } from './wasm-bridge';
 
@@ -429,6 +430,19 @@ export class ApiClient {
   // who ran the session, or an instructor/admin reviewing it.
   async getTrainingReport(sessionId: string): Promise<TrainingReport> {
     return this.request<TrainingReport>('GET', `/api/training/report?session_id=${encodeURIComponent(sessionId)}`);
+  }
+
+  // AI-drafted note for a completed session -- deterministic, built only
+  // from real event data (see build_training_note_draft_json server-side).
+  // Owner-only: this generates and persists a NOTE_DRAFTED audit event,
+  // then the nurse edits the returned text and calls signTrainingNote with
+  // whatever they end up submitting.
+  async generateTrainingNoteDraft(sessionId: string): Promise<TrainingNoteDraft> {
+    return this.request<TrainingNoteDraft>('GET', `/api/training/note/draft?session_id=${encodeURIComponent(sessionId)}`);
+  }
+
+  async signTrainingNote(sessionId: string, content: string, wasEdited: boolean): Promise<{ status: string; session_id: string; signed_at: string }> {
+    return this.request('POST', '/api/training/note/sign', { session_id: sessionId, content, was_edited: wasEdited });
   }
 
   // =========================================================================

@@ -45,23 +45,24 @@ std::vector<std::pair<std::string, float>> ResponsePipeline::retrieve_relevant_f
         return results;
     }
     
-    auto related = knowledge_graph->find_related_concepts(prompt_embedding, top_k);
+    auto related = knowledge_graph->find_related_concepts(prompt_embedding, prompt, top_k);
     for (const auto& [concept, relevance] : related) {
         results.push_back({concept, relevance});
     }
-    
+
     return results;
 }
 
 std::vector<std::pair<std::string, float>> ResponsePipeline::retrieve_active_concepts(
+    const std::string& prompt,
     const Embedding& embedding,
     int top_k) const {
-    
+
     if (!knowledge_graph) {
         return {};
     }
-    
-    return knowledge_graph->find_related_concepts(embedding, top_k);
+
+    return knowledge_graph->find_related_concepts(embedding, prompt, top_k);
 }
 
 DecoderOutput ResponsePipeline::process(const std::string& session_id,
@@ -96,8 +97,8 @@ DecoderOutput ResponsePipeline::process(const std::string& session_id,
         retrieved_facts.resize(5);
     }
     
-    std::vector<std::pair<std::string, float>> active_concepts = 
-        retrieve_active_concepts(prompt_emb, 5);
+    std::vector<std::pair<std::string, float>> active_concepts =
+        retrieve_active_concepts(prompt, prompt_emb, 5);
     
     DecoderInput decoder_input;
     decoder_input.session_id = session_id;

@@ -45,7 +45,7 @@ export default defineConfig({
   },
   
   server: {
-    port: 5173,
+    port: Number(process.env.PORT) || 5173,
     host: 'localhost',
     proxy: {
       '/api': {
@@ -57,10 +57,6 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true
       }
-    },
-    hmr: {
-      host: 'localhost',
-      port: 5173
     }
   },
   

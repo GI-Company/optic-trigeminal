@@ -3,17 +3,19 @@
 #include <algorithm>
 #include <cmath>
 #include <sstream>
+#include <unordered_map>
 
 RAGDAGSystem::RAGDAGSystem() : total_edges(0) {}
 
 void RAGDAGSystem::initialize_from_knowledge_graph(const std::map<std::string, GraphNode>& kg_nodes,
                                                    const std::vector<GraphEdge>& kg_edges) {
     std::lock_guard<std::recursive_mutex> lock(dag_mutex);
-    
+
     nodes.clear();
     edges_by_dimension.clear();
+    bm25_.clear();
     total_edges = 0;
-    
+
     int count = 0;
     for (const auto& node_pair : kg_nodes) {
         const auto& kg_node = node_pair.second;
@@ -24,8 +26,9 @@ void RAGDAGSystem::initialize_from_knowledge_graph(const std::map<std::string, G
         dag_node.metadata.relevance_score = kg_node.importance;
         dag_node.embedding = kg_node.embedding;
         dag_node.metadata.abstraction_level = 0;
-        
+
         nodes[kg_node.id] = dag_node;
+        bm25_.index_document(kg_node.id, BM25Index::tokenize_and_count(dag_node.metadata.concept));
         if (++count % 5000 == 0) {
             std::cout << "  RAG-DAG: Integrated " << count << " / " << kg_nodes.size() << " nodes..." << std::endl;
         }
@@ -58,8 +61,9 @@ std::string RAGDAGSystem::add_node(const std::string& concept, const Embedding& 
     dag_node.metadata.primary_domain = domain;
     dag_node.metadata.abstraction_level = abstraction_level;
     dag_node.embedding = embedding;
-    
+
     nodes[node_id] = dag_node;
+    bm25_.index_document(node_id, BM25Index::tokenize_and_count(concept));
     return node_id;
 }
 
@@ -226,6 +230,8 @@ std::vector<std::string> RAGDAGSystem::find_causal_chain(const std::string& star
 std::vector<DimensionalRetrievalResult> RAGDAGSystem::cross_dimensional_search(
     const std::string& query,
     const Embedding& query_embedding,
+    const std::string& query_domain,
+    const std::string& reference_node_id,
     float semantic_weight,
     float temporal_weight,
     float causal_weight,
@@ -233,47 +239,110 @@ std::vector<DimensionalRetrievalResult> RAGDAGSystem::cross_dimensional_search(
     float domain_weight,
     float confidence_weight,
     int top_k) {
-    
+
     std::lock_guard<std::recursive_mutex> lock(dag_mutex);
-    
+
+    bool have_reference = !reference_node_id.empty() && nodes.count(reference_node_id) > 0;
+    int reference_level = have_reference ? nodes.at(reference_node_id).metadata.abstraction_level : 0;
+
+    // SEMANTIC is BM25 lexical ranking fused with neural cosine ranking via
+    // Reciprocal Rank Fusion (same pattern as OpticTrigeminal::find_k_neighbors)
+    // rather than raw cosine alone -- see include/rag_dag.h's BM25Index
+    // member. RRF scores are rank-based and land in a tiny range (max
+    // 2/(k_rrf+1)) compared to the other dimensions' natural [0,1] scale,
+    // so it's normalized against that max before being weighted, keeping
+    // semantic_weight meaningful relative to the other five weights.
+    constexpr int kCandidatePool = 200;
+    constexpr float kRrfK = 60.0f;
+    const float kMaxRrf = 2.0f / (kRrfK + 1.0f);
+
+    auto bm25_results = bm25_.search(query, kCandidatePool);
+    std::unordered_map<std::string, size_t> bm25_rank_of;
+    bm25_rank_of.reserve(bm25_results.size());
+    for (size_t i = 0; i < bm25_results.size(); ++i) {
+        bm25_rank_of[bm25_results[i].first] = i;
+    }
+
+    std::vector<std::pair<std::string, float>> neural_ranked;
+    neural_ranked.reserve(nodes.size());
+    for (const auto& [node_id, dag_node] : nodes) {
+        neural_ranked.emplace_back(node_id, compute_semantic_similarity(query_embedding, dag_node.embedding));
+    }
+    std::sort(neural_ranked.begin(), neural_ranked.end(),
+              [](const auto& a, const auto& b) { return a.second > b.second; });
+    std::unordered_map<std::string, size_t> neural_rank_of;
+    neural_rank_of.reserve(neural_ranked.size());
+    for (size_t i = 0; i < neural_ranked.size(); ++i) {
+        neural_rank_of[neural_ranked[i].first] = i;
+    }
+
     std::vector<DimensionalRetrievalResult> results;
-    std::map<std::string, float> composite_scores;
-    
-    for (const auto& node_pair : nodes) {
-        const auto& node_id = node_pair.first;
-        const auto& dag_node = node_pair.second;
-        
-        float composite = 0.0f;
-        
-        float sem = compute_semantic_similarity(query_embedding, dag_node.embedding) * semantic_weight;
+    results.reserve(nodes.size());
+
+    for (const auto& [node_id, dag_node] : nodes) {
+        float rrf = 0.0f;
+        auto br = bm25_rank_of.find(node_id);
+        if (br != bm25_rank_of.end()) rrf += 1.0f / (kRrfK + static_cast<float>(br->second + 1));
+        auto nr = neural_rank_of.find(node_id);
+        if (nr != neural_rank_of.end()) rrf += 1.0f / (kRrfK + static_cast<float>(nr->second + 1));
+        float sem = rrf / kMaxRrf;
+
         float temp = compute_temporal_proximity(
             std::chrono::system_clock::now().time_since_epoch().count(),
-            dag_node.metadata.last_accessed) * temporal_weight;
-        float dom = compute_domain_alignment(query, dag_node.metadata.primary_domain) * domain_weight;
+            dag_node.metadata.last_accessed);
+
+        float causal = 0.0f;
+        float hier = 0.0f;
+        if (have_reference && node_id != reference_node_id) {
+            causal = compute_causal_strength(reference_node_id, node_id);
+            hier = compute_hierarchical_distance(reference_level, dag_node.metadata.abstraction_level);
+        }
+
+        float dom = query_domain.empty() ? 0.0f
+                                          : compute_domain_alignment(query_domain, dag_node.metadata.primary_domain);
+
         float conf = compute_confidence_score(dag_node.metadata.access_frequency,
-                                             dag_node.metadata.last_accessed) * confidence_weight;
-        
-        composite = sem + temp + dom + conf;
-        composite_scores[node_id] = composite;
-    }
-    
-    for (const auto& pair : composite_scores) {
+                                              dag_node.metadata.last_accessed);
+
         DimensionalRetrievalResult result;
-        result.node_id = pair.first;
-        result.composite_score = pair.second;
-        result.concept = nodes[pair.first].metadata.concept;
+        result.node_id = node_id;
+        result.concept = dag_node.metadata.concept;
+        result.dimension_scores[DimensionType::SEMANTIC] = sem;
+        result.dimension_scores[DimensionType::TEMPORAL] = temp;
+        result.dimension_scores[DimensionType::CAUSAL] = causal;
+        result.dimension_scores[DimensionType::HIERARCHICAL] = hier;
+        result.dimension_scores[DimensionType::DOMAIN_DIM] = dom;
+        result.dimension_scores[DimensionType::CONFIDENCE] = conf;
+        result.composite_score = sem * semantic_weight
+                                + temp * temporal_weight
+                                + causal * causal_weight
+                                + hier * hierarchical_weight
+                                + dom * domain_weight
+                                + conf * confidence_weight;
         results.push_back(result);
     }
-    
+
     std::sort(results.begin(), results.end(),
              [](const DimensionalRetrievalResult& a, const DimensionalRetrievalResult& b) {
                  return a.composite_score > b.composite_score;
              });
-    
+
     if (results.size() > static_cast<size_t>(top_k)) {
         results.resize(top_k);
     }
-    
+
+    // Real access-tracking for the returned top-k, mirroring what
+    // retrieve_multidimensional already does -- without this,
+    // temporal/confidence stay frozen at server-boot forever.
+    for (auto& result : results) {
+        auto it = nodes.find(result.node_id);
+        if (it != nodes.end()) {
+            it->second.metadata.access_frequency++;
+            it->second.metadata.last_accessed =
+                std::chrono::system_clock::now().time_since_epoch().count();
+        }
+    }
+
     return results;
 }
 

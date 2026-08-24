@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <sstream>
 #include <cctype>
+#include <unordered_map>
 
 VectorF StemClassifier::relu(const VectorF& x) const {
     VectorF result = x;
@@ -488,21 +489,6 @@ void VTAPredictor::set_weights(const MatrixF& wxh, const MatrixF& whh, const Mat
 
 OpticTrigeminal::OpticTrigeminal() : total_nodes(0), rng(std::random_device{}()) {}
 
-std::map<std::string, int> OpticTrigeminal::tokenize_and_count(const std::string& text) {
-    std::map<std::string, int> counts;
-    std::string word;
-    for (unsigned char c : text) {
-        if (std::isalnum(c)) {
-            word += static_cast<char>(std::tolower(c));
-        } else if (!word.empty()) {
-            counts[word]++;
-            word.clear();
-        }
-    }
-    if (!word.empty()) counts[word]++;
-    return counts;
-}
-
 void OpticTrigeminal::add_concept(const std::string& id, const std::string& label,
                                   const Embedding& embedding, const std::string& type,
                                   bool is_query_only) {
@@ -512,11 +498,8 @@ void OpticTrigeminal::add_concept(const std::string& id, const std::string& labe
         node.type = type;
         node.embedding = embedding;
         node.is_query_only = is_query_only;
-        node.term_counts = tokenize_and_count(label);
-        for (const auto& [term, count] : node.term_counts) {
-            document_frequency_[term]++;
-        }
-        total_documents_++;
+        node.term_counts = BM25Index::tokenize_and_count(label);
+        bm25_.index_document(id, node.term_counts);
         nodes[id] = node;
         total_nodes++;
     }
@@ -554,91 +537,109 @@ void OpticTrigeminal::link_concepts(const std::string& from_id, const std::strin
     }
 }
 
-float OpticTrigeminal::lexical_similarity(const std::map<std::string, int>& query_terms, const GraphNode& node) const {
-    if (query_terms.empty() || node.term_counts.empty()) return 0.0f;
-
-    auto idf = [&](const std::string& term) {
-        auto it = document_frequency_.find(term);
-        int df = (it != document_frequency_.end()) ? it->second : 0;
-        // Standard smoothed IDF: +1 so an unseen term doesn't divide by
-        // zero, +1 on the whole log so a term present in every node still
-        // carries a small nonzero weight rather than dropping to 0.
-        return std::log((static_cast<float>(total_documents_) + 1.0f) / (static_cast<float>(df) + 1.0f)) + 1.0f;
-    };
-
-    float dot = 0.0f, query_norm = 0.0f, node_norm = 0.0f;
-    for (const auto& [term, qcount] : query_terms) {
-        float weight = idf(term);
-        float qw = static_cast<float>(qcount) * weight;
-        query_norm += qw * qw;
-        auto nit = node.term_counts.find(term);
-        if (nit != node.term_counts.end()) {
-            dot += qw * (static_cast<float>(nit->second) * weight);
-        }
-    }
-    for (const auto& [term, ncount] : node.term_counts) {
-        float nw = static_cast<float>(ncount) * idf(term);
-        node_norm += nw * nw;
-    }
-
-    if (query_norm <= 0.0f || node_norm <= 0.0f) return 0.0f;
-    return dot / (std::sqrt(query_norm) * std::sqrt(node_norm));
-}
-
 std::vector<std::pair<std::string, float>> OpticTrigeminal::find_k_neighbors(
     const Embedding& embedding, const std::string& query_text, int k, float threshold) const {
-    std::vector<std::pair<std::string, float>> neighbors;
 
-    // OpticEmbedder's weights are randomly initialized (see its
-    // constructor) and never actually trained before being used live --
-    // the only training pipeline that touches them (training_stages.cpp)
-    // trains a separate, throwaway embedder instance and checkpoints it
-    // lossily (capped well below W1's real size, placeholder biases), and
-    // nothing loads that checkpoint back into the live engine at startup.
-    // So neural cosine similarity here is closer to noise than genuine
-    // semantic relevance at corpus scale (confirmed live: a medical query
-    // was returning marketing copy as its top match). TF-IDF lexical
-    // overlap needs no training at all and is a real, verifiable
-    // relevance signal, so it dominates the blend below; neural still
-    // contributes a modest amount rather than being discarded outright,
-    // since it's real, functioning infrastructure -- just not a trained
-    // one yet.
-    std::map<std::string, int> query_terms;
-    if (!query_text.empty()) {
-        query_terms = tokenize_and_count(query_text);
+    // No real query text: internal callers doing graph traversal between
+    // existing nodes (reinforce_path, AdvancedDecoder::traverse_and_generate)
+    // have only an embedding to compare, not a lexical query BM25 could rank
+    // against. Falls back to pure neural cosine similarity, unchanged from
+    // before BM25 was introduced.
+    if (query_text.empty()) {
+        std::vector<std::pair<std::string, float>> neighbors;
+        for (const auto& [id, node] : nodes) {
+            float neural_sim = embedding.cosine_similarity(node.embedding);
+            if (neural_sim > threshold) {
+                neighbors.emplace_back(node.label.empty() ? id : node.label, neural_sim);
+            }
+        }
+        std::sort(neighbors.rbegin(), neighbors.rend(),
+                  [](const auto& a, const auto& b) { return a.second < b.second; });
+        if (neighbors.size() > (size_t)k) {
+            neighbors.resize(k);
+        }
+        return neighbors;
     }
 
+    // Real query text: fuse a BM25 lexical ranking with a neural cosine
+    // ranking via Reciprocal Rank Fusion (RRF(d) = sum 1/(k_rrf+rank_r(d)),
+    // k_rrf=60) instead of a raw-score linear blend. BM25 scores and cosine
+    // similarity live on unrelated numeric scales (unbounded vs [-1,1]), so
+    // combining by rank position avoids one signal silently dominating just
+    // because its raw numbers happen to be bigger.
+    //
+    // OpticEmbedder's weights are randomly initialized (see its
+    // constructor) and never actually trained before being used live -- the
+    // only training pipeline that touches them (training_stages.cpp) trains
+    // a separate, throwaway embedder instance and checkpoints it lossily,
+    // and nothing loads that checkpoint back into the live engine at
+    // startup. So neural cosine alone is closer to noise than genuine
+    // semantic relevance at corpus scale (confirmed live: a medical query
+    // was returning marketing copy as its top match). BM25 is what actually
+    // generates the candidate set below; neural cosine only re-ranks within
+    // it, rather than being able to surface a node BM25 found no term
+    // overlap with at all.
+    constexpr int kCandidatePool = 200;
+    constexpr float kRrfK = 60.0f;
+
+    auto bm25_results = bm25_.search(query_text, kCandidatePool);
+    if (bm25_results.empty()) {
+        return {};
+    }
+
+    std::vector<std::pair<std::string, float>> neural_ranked;
+    neural_ranked.reserve(nodes.size());
     for (const auto& [id, node] : nodes) {
         // A stored question is never itself a useful answer to a live
-        // query -- see GraphNode::is_query_only. Internal callers with no
-        // real query_text (graph traversal between existing nodes) still
-        // consider every node, unaffected.
-        if (!query_terms.empty() && node.is_query_only) continue;
+        // query -- see GraphNode::is_query_only.
+        if (node.is_query_only) continue;
+        neural_ranked.emplace_back(id, embedding.cosine_similarity(node.embedding));
+    }
+    std::sort(neural_ranked.begin(), neural_ranked.end(),
+              [](const auto& a, const auto& b) { return a.second > b.second; });
 
-        float neural_sim = embedding.cosine_similarity(node.embedding);
-        float combined_sim = neural_sim;
-        if (!query_terms.empty()) {
-            float lexical_sim = lexical_similarity(query_terms, node);
-            combined_sim = 0.85f * lexical_sim + 0.15f * neural_sim;
-        }
-        if (combined_sim > threshold) {
-            // Bulk-loaded nodes (NativeInferenceEngine::initialize_with_training_data)
-            // are keyed by an opaque "concept_N" id with the real text stored
-            // separately in node.label -- returning the bare id here is what
-            // surfaced literal strings like "concept_1583" as a "related
-            // concept" in API responses instead of anything a person could
-            // read. Fall back to id only for nodes that never got a label.
-            neighbors.emplace_back(node.label.empty() ? id : node.label, combined_sim);
-        }
+    std::unordered_map<std::string, size_t> neural_rank_of;
+    neural_rank_of.reserve(neural_ranked.size());
+    for (size_t rank = 0; rank < neural_ranked.size(); ++rank) {
+        neural_rank_of[neural_ranked[rank].first] = rank;
     }
 
-    std::sort(neighbors.rbegin(), neighbors.rend(),
-              [](const auto& a, const auto& b) { return a.second < b.second; });
+    std::vector<std::pair<std::string, float>> fused;
+    fused.reserve(bm25_results.size());
+    for (size_t rank = 0; rank < bm25_results.size(); ++rank) {
+        const std::string& id = bm25_results[rank].first;
+        auto node_it = nodes.find(id);
+        if (node_it != nodes.end() && node_it->second.is_query_only) continue;
 
-    if (neighbors.size() > (size_t)k) {
-        neighbors.resize(k);
+        float rrf = 1.0f / (kRrfK + static_cast<float>(rank + 1));
+        auto nr_it = neural_rank_of.find(id);
+        if (nr_it != neural_rank_of.end()) {
+            rrf += 1.0f / (kRrfK + static_cast<float>(nr_it->second + 1));
+        }
+        fused.emplace_back(id, rrf);
     }
-    
+
+    std::sort(fused.begin(), fused.end(),
+              [](const auto& a, const auto& b) { return a.second > b.second; });
+    if (fused.size() > (size_t)k) {
+        fused.resize(k);
+    }
+
+    // Bulk-loaded nodes (NativeInferenceEngine::initialize_with_training_data)
+    // are keyed by an opaque "concept_N" id with the real text stored
+    // separately in node.label -- returning the bare id here is what
+    // surfaced literal strings like "concept_1583" as a "related concept" in
+    // API responses instead of anything a person could read. Fall back to
+    // id only for nodes that never got a label.
+    std::vector<std::pair<std::string, float>> neighbors;
+    neighbors.reserve(fused.size());
+    for (auto& [id, score] : fused) {
+        auto node_it = nodes.find(id);
+        const std::string& display = (node_it != nodes.end() && !node_it->second.label.empty())
+                                          ? node_it->second.label
+                                          : id;
+        neighbors.emplace_back(display, score);
+    }
     return neighbors;
 }
 

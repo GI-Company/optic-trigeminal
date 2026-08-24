@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.h"
+#include "bm25_index.h"
 #include <random>
 #include <numeric>
 
@@ -97,21 +98,17 @@ private:
     int total_nodes;
     std::mt19937 rng;
 
-    // TF-IDF document-frequency table across every node's label, updated
+    // Real Okapi BM25 lexical index over every node's label, updated
     // incrementally in add_concept. See find_k_neighbors for why this
     // exists alongside the neural embedding.
-    std::map<std::string, int> document_frequency_;
-    size_t total_documents_ = 0;
-
-    static std::map<std::string, int> tokenize_and_count(const std::string& text);
-    float lexical_similarity(const std::map<std::string, int>& query_terms, const GraphNode& node) const;
+    BM25Index bm25_;
 
     VectorF shortest_path_bfs(const std::string& start, const std::string& end) const;
     // query_text is optional (defaults to none): purely-internal callers
     // that only have an embedding to compare (graph traversal between
     // existing nodes, not a user query) fall back to pure neural cosine
     // similarity unchanged. Callers that have the real query text should
-    // pass it -- that's what makes the TF-IDF blend below apply.
+    // pass it -- that's what makes the BM25 + RRF fusion below apply.
     std::vector<std::pair<std::string, float>> find_k_neighbors(
         const Embedding& embedding, const std::string& query_text, int k, float threshold = 0.3f) const;
 

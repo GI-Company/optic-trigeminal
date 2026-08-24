@@ -25,6 +25,7 @@ cd build
 # Compile all source files
 clang++ -std=c++17 -O3 -march=native -I../include \
     ../src/kernel/neural_components.cpp \
+    ../src/kernel/bm25_index.cpp \
     ../src/kernel/specialization.cpp \
     ../src/kernel/inference_engine.cpp \
     ../src/kernel/data_loader.cpp \
@@ -78,6 +79,7 @@ echo ""
 echo "Building integration tests..."
 clang++ -std=c++17 -O3 -march=native -I../include \
     ../src/kernel/neural_components.cpp \
+    ../src/kernel/bm25_index.cpp \
     ../src/kernel/specialization.cpp \
     ../src/kernel/inference_engine.cpp \
     ../src/kernel/data_loader.cpp \
@@ -126,6 +128,7 @@ echo ""
 echo "Building admin CLI..."
 clang++ -std=c++17 -O3 -march=native -I../include \
     ../src/kernel/neural_components.cpp \
+    ../src/kernel/bm25_index.cpp \
     ../src/kernel/specialization.cpp \
     ../src/kernel/inference_engine.cpp \
     ../src/kernel/data_loader.cpp \

@@ -136,10 +136,12 @@ public:
     bool transition_inference_process(const std::string& process_id, ProcessState new_state);
     std::vector<DimensionalRetrievalResult> retrieve_with_rag_dag(const std::string& query,
                                                                   const Embedding& query_embedding,
+                                                                  const std::string& query_domain = "",
+                                                                  const std::string& reference_node_id = "",
                                                                   int top_k = 5);
     std::string get_vfs_process_tree() const;
     std::string get_rag_dag_statistics() const;
-    
+
     AgentOrchestrator* get_agent_orchestrator() { return agent_orchestrator.get(); }
     MetaDebugger* get_meta_debugger() { return meta_debugger.get(); }
     CognitiveLoadBalancer* get_load_balancer() { return load_balancer.get(); }
@@ -148,6 +150,8 @@ public:
     DebugServer* get_debug_server() { return debug_server.get(); }
 #endif
     RAGDAGSystem* get_rag_dag() { return rag_dag_system.get(); }
+    OpticTrigeminal* get_knowledge_graph() { return optic_trigeminal.get(); }
+    Embedding embed_text(const std::string& text) { return optic_embedder->embed(text); }
     
     void set_session_id(const std::string& session_id);
     void set_session_context(const std::string& session_id, const std::string& key, const std::string& value);

@@ -689,8 +689,11 @@ bool NativeInferenceEngine::transition_inference_process(const std::string& proc
 
 std::vector<DimensionalRetrievalResult> NativeInferenceEngine::retrieve_with_rag_dag(const std::string& query,
                                                                                      const Embedding& query_embedding,
+                                                                                     const std::string& query_domain,
+                                                                                     const std::string& reference_node_id,
                                                                                      int top_k) {
-    return rag_dag_system->cross_dimensional_search(query, query_embedding, 0.3f, 0.2f, 0.2f, 0.15f, 0.1f, 0.05f, top_k);
+    return rag_dag_system->cross_dimensional_search(query, query_embedding, query_domain, reference_node_id,
+                                                     0.3f, 0.2f, 0.2f, 0.15f, 0.1f, 0.05f, top_k);
 }
 
 std::string NativeInferenceEngine::get_vfs_process_tree() const {

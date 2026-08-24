@@ -1212,7 +1212,7 @@ HTTPServer::Response HTTPServer::handle_observations(const Request& req) {
     }
 
     // Analyze patient and get observations
-    auto observations = analyzer->analyze_patient(*patient, engine->get_rag_dag(), engine.get());
+    auto observations = analyzer->analyze_patient(*patient, engine.get());
 
     // Train the engine on these observations (ACmK Learning Loop)
     for (const auto& obs : observations) {
@@ -1310,7 +1310,41 @@ HTTPServer::Response HTTPServer::handle_scaffold(const Request& req) {
         return Response(404, "{\"error\": \"Patient not found\"}\n");
     }
 
-    auto observations = analyzer->analyze_patient(*patient, engine->get_rag_dag(), engine.get());
+    auto observations = analyzer->analyze_patient(*patient, engine.get());
+
+    // RAGDAGSystem's actual differentiator vs. flat text search
+    // (OpticTrigeminal) is relationship-graph traversal: for each finding
+    // that needs nurse attention, anchor it to the nearest known corpus
+    // concept via BM25+semantic search (no reference node yet, so only
+    // SEMANTIC/TEMPORAL/DOMAIN/CONFIDENCE contribute), then re-query using
+    // that anchor as the reference node so CAUSAL/HIERARCHICAL actually
+    // activate and surface genuinely connected concepts a flat lookup
+    // wouldn't -- capped so one scaffold call can't balloon into dozens of
+    // graph walks.
+    std::vector<std::string> causally_related_findings;
+    RAGDAGSystem* rag_dag = engine->get_rag_dag();
+    if (rag_dag) {
+        for (const auto& obs : observations) {
+            if (!obs.requires_nurse_attention) continue;
+            if (causally_related_findings.size() >= 5) break;
+
+            Embedding finding_emb = engine->embed_text(obs.description);
+            auto anchor = rag_dag->cross_dimensional_search(
+                obs.description, finding_emb, "medical_clinical", "",
+                0.3f, 0.2f, 0.2f, 0.15f, 0.1f, 0.05f, 1);
+            if (anchor.empty()) continue;
+            const std::string anchor_id = anchor[0].node_id;
+
+            auto related = rag_dag->cross_dimensional_search(
+                obs.description, finding_emb, "medical_clinical", anchor_id,
+                0.3f, 0.2f, 0.2f, 0.15f, 0.1f, 0.05f, 4);
+            for (const auto& r : related) {
+                if (r.node_id == anchor_id) continue;
+                causally_related_findings.push_back(r.concept);
+                if (causally_related_findings.size() >= 5) break;
+            }
+        }
+    }
 
     // Structured components, not just the concatenated note -- the
     // frontend's SBARResponse type (web/src/api/types.ts) expects
@@ -1455,6 +1489,14 @@ HTTPServer::Response HTTPServer::handle_scaffold(const Request& req) {
             if (i > 0 || j > 0) body << ", ";
             body << "\"" << json_escape(observations[i].suggested_actions[j]) << "\"";
         }
+    }
+    body << "],\n";
+    body << "  \"causally_related_findings\": [";
+    for (size_t i = 0; i < causally_related_findings.size(); ++i) {
+        if (i > 0) body << ", ";
+        std::string snippet = causally_related_findings[i];
+        if (snippet.size() > 200) snippet = snippet.substr(0, 200) + "...";
+        body << "\"" << json_escape(snippet) << "\"";
     }
     body << "],\n";
     body << "  \"timestamp\": \"" << current_timestamp() << "\"\n";

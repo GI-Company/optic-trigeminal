@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.h"
+#include "bm25_index.h"
 #include <set>
 #include <memory>
 #include <map>
@@ -89,9 +90,24 @@ public:
                                               const std::string& end_node,
                                               int max_hops = 5);
     
+    // query_domain: real domain tag to compare against each node's
+    // primary_domain (e.g. "medical_clinical") -- default "" means no
+    // domain context was supplied, and the DOMAIN_DIM dimension honestly
+    // contributes 0 rather than compute_domain_alignment's old silent
+    // always-0.3f (it used to be called with the raw query string standing
+    // in for a domain tag, which never equals any real domain).
+    //
+    // reference_node_id: causal/hierarchical strength are structurally
+    // pairwise (compute_causal_strength/compute_hierarchical_distance both
+    // need two specific nodes, not a query-to-corpus comparison) -- default
+    // "" means no reference node was supplied, and those two dimensions
+    // contribute 0, same graceful behavior as before but now honestly
+    // documented instead of being silently unreachable.
     std::vector<DimensionalRetrievalResult> cross_dimensional_search(
         const std::string& query,
         const Embedding& query_embedding,
+        const std::string& query_domain = "",
+        const std::string& reference_node_id = "",
         float semantic_weight = 0.3f,
         float temporal_weight = 0.2f,
         float causal_weight = 0.2f,
@@ -129,6 +145,12 @@ private:
     std::map<std::string, std::vector<DimensionalEdge>> edges_by_dimension;
     int total_edges;
     mutable std::recursive_mutex dag_mutex;
+
+    // Own BM25 lexical index, separate from OpticTrigeminal's (this is a
+    // distinct system whose actual differentiator is relationship-graph
+    // traversal, not a second copy of OpticTrigeminal's flat-text search --
+    // see cross_dimensional_search). Indexes each node's full concept text.
+    BM25Index bm25_;
     
     float compute_semantic_similarity(const Embedding& a, const Embedding& b) const;
     float compute_temporal_proximity(int64_t t1, int64_t t2) const;

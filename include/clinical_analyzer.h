@@ -6,7 +6,6 @@
 #include <ctime>
 
 // Forward declarations to avoid circular dependency
-class RAGDAGSystem;
 class NativeInferenceEngine;
 
 
@@ -39,7 +38,6 @@ public:
     // Main analysis function - returns all current observations for a patient
     std::vector<ClinicalObservation> analyze_patient(
         const Patient& patient,
-        RAGDAGSystem* rag_dag,
         NativeInferenceEngine* engine
     );
     
@@ -75,7 +73,10 @@ private:
     VitalThresholds rr_thresholds;
     
     // Helper functions
-    std::string generate_rationale(const Patient& p, std::string finding, RAGDAGSystem* rag_dag);
+    // engine is used to reach both OpticTrigeminal (the retrieval-augmentation
+    // lookup) and OpticEmbedder (embedding the canned rationale text as a
+    // query) -- see generate_rationale's definition.
+    std::string generate_rationale(const Patient& p, std::string finding, NativeInferenceEngine* engine);
     std::vector<std::string> suggest_actions(std::string observation_type, std::string severity);
     float calculate_confidence(const Patient& p, std::string observation);
     

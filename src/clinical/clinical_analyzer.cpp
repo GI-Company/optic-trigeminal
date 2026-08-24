@@ -1,4 +1,5 @@
 #include "../include/clinical_analyzer.h"
+#include "../include/inference_engine.h"
 #include <cmath>
 #include <sstream>
 #include <algorithm>
@@ -43,7 +44,6 @@ ClinicalAnalyzer::~ClinicalAnalyzer() {}
 
 std::vector<ClinicalObservation> ClinicalAnalyzer::analyze_patient(
     const Patient& patient,
-    RAGDAGSystem* rag_dag,
     NativeInferenceEngine* engine
 ) {
     std::vector<ClinicalObservation> observations;
@@ -58,7 +58,7 @@ std::vector<ClinicalObservation> ClinicalAnalyzer::analyze_patient(
         obs.description = "Heart rate " + hr_trend.trend_type + " (" + 
                          std::to_string(static_cast<int>(hr_trend.slope)) + " bpm/" + 
                          std::to_string(hr_trend.duration_samples) + " samples)";
-        obs.rationale = generate_rationale(patient, "hr_trend_" + hr_trend.trend_type, rag_dag);
+        obs.rationale = generate_rationale(patient, "hr_trend_" + hr_trend.trend_type, engine);
         obs.confidence = calculate_confidence(patient, "hr_trend");
         obs.suggested_actions = suggest_actions("hr_trend", obs.severity);
         obs.requires_nurse_attention = (obs.severity != "info");
@@ -75,7 +75,7 @@ std::vector<ClinicalObservation> ClinicalAnalyzer::analyze_patient(
         obs.description = "SpO2 " + spo2_trend.trend_type + " (" + 
                          std::to_string(static_cast<int>(spo2_trend.slope)) + "%/" + 
                          std::to_string(spo2_trend.duration_samples) + " samples)";
-        obs.rationale = generate_rationale(patient, "spo2_trend_" + spo2_trend.trend_type, rag_dag);
+        obs.rationale = generate_rationale(patient, "spo2_trend_" + spo2_trend.trend_type, engine);
         obs.confidence = calculate_confidence(patient, "spo2_trend");
         obs.suggested_actions = suggest_actions("spo2_trend", obs.severity);
         obs.requires_nurse_attention = (obs.severity != "info");
@@ -91,7 +91,7 @@ std::vector<ClinicalObservation> ClinicalAnalyzer::analyze_patient(
         obs.severity = "critical";
         obs.description = "Heart rate " + std::to_string(patient.vitals.hr) + " bpm is critically " +
                          (patient.vitals.hr < hr_thresholds.critical_low ? "low" : "high");
-        obs.rationale = generate_rationale(patient, "critical_hr", rag_dag);
+        obs.rationale = generate_rationale(patient, "critical_hr", engine);
         obs.confidence = 0.95f;
         obs.suggested_actions = suggest_actions("critical_hr", "critical");
         obs.requires_nurse_attention = true;
@@ -104,7 +104,7 @@ std::vector<ClinicalObservation> ClinicalAnalyzer::analyze_patient(
         obs.severity = "warning";
         obs.description = "Heart rate " + std::to_string(patient.vitals.hr) + " bpm is " +
                          (patient.vitals.hr < hr_thresholds.normal_low ? "below" : "above") + " normal range";
-        obs.rationale = generate_rationale(patient, "abnormal_hr", rag_dag);
+        obs.rationale = generate_rationale(patient, "abnormal_hr", engine);
         obs.confidence = 0.85f;
         obs.suggested_actions = suggest_actions("abnormal_hr", "warning");
         obs.requires_nurse_attention = true;
@@ -118,7 +118,7 @@ std::vector<ClinicalObservation> ClinicalAnalyzer::analyze_patient(
         obs.observation_type = "threshold";
         obs.severity = "critical";
         obs.description = "SpO2 " + std::to_string(patient.vitals.spo2) + "% indicates hypoxia";
-        obs.rationale = generate_rationale(patient, "hypoxia", rag_dag);
+        obs.rationale = generate_rationale(patient, "hypoxia", engine);
         obs.confidence = 0.95f;
         obs.suggested_actions = suggest_actions("hypoxia", "critical");
         obs.requires_nurse_attention = true;
@@ -130,7 +130,7 @@ std::vector<ClinicalObservation> ClinicalAnalyzer::analyze_patient(
         obs.observation_type = "threshold";
         obs.severity = "warning";
         obs.description = "SpO2 " + std::to_string(patient.vitals.spo2) + "% is below normal range";
-        obs.rationale = generate_rationale(patient, "low_spo2", rag_dag);
+        obs.rationale = generate_rationale(patient, "low_spo2", engine);
         obs.confidence = 0.85f;
         obs.suggested_actions = suggest_actions("low_spo2", "warning");
         obs.requires_nurse_attention = true;
@@ -145,7 +145,7 @@ std::vector<ClinicalObservation> ClinicalAnalyzer::analyze_patient(
         obs.observation_type = "pattern";
         obs.severity = "warning";
         obs.description = "Pattern suggests respiratory compromise";
-        obs.rationale = generate_rationale(patient, "respiratory_compromise", rag_dag);
+        obs.rationale = generate_rationale(patient, "respiratory_compromise", engine);
         obs.confidence = 0.80f;
         obs.suggested_actions = suggest_actions("respiratory_compromise", "warning");
         obs.requires_nurse_attention = true;
@@ -159,7 +159,7 @@ std::vector<ClinicalObservation> ClinicalAnalyzer::analyze_patient(
         obs.observation_type = "pattern";
         obs.severity = "critical";
         obs.description = "Pattern suggests possible shock state";
-        obs.rationale = generate_rationale(patient, "shock_pattern", rag_dag);
+        obs.rationale = generate_rationale(patient, "shock_pattern", engine);
         obs.confidence = 0.75f;
         obs.suggested_actions = suggest_actions("shock", "critical");
         obs.requires_nurse_attention = true;
@@ -276,31 +276,56 @@ bool ClinicalAnalyzer::detect_sepsis_indicators(const Patient& p) {
     return (tachycardia && tachypnea && hypotension);
 }
 
-std::string ClinicalAnalyzer::generate_rationale(const Patient& p, std::string finding, RAGDAGSystem* rag_dag) {
-    // Generate clinical rationale based on finding type
+std::string ClinicalAnalyzer::generate_rationale(const Patient& p, std::string finding, NativeInferenceEngine* engine) {
+    // Base clinical rationale, keyed by finding type. This is accurate,
+    // reviewed, deterministic clinical content and stays exactly as-is --
+    // what follows is additive enrichment, never a replacement, given the
+    // clinical-safety context.
+    std::string base;
     if (finding == "hr_trend_rising") {
-        return "Increasing heart rate may indicate pain, anxiety, fever, hypovolemia, or cardiac stress. Consider assessing patient comfort and fluid status.";
+        base = "Increasing heart rate may indicate pain, anxiety, fever, hypovolemia, or cardiac stress. Consider assessing patient comfort and fluid status.";
     } else if (finding == "hr_trend_falling") {
-        return "Decreasing heart rate trend should be monitored. If patient is on beta-blockers or has cardiac conduction issues, close monitoring is warranted.";
+        base = "Decreasing heart rate trend should be monitored. If patient is on beta-blockers or has cardiac conduction issues, close monitoring is warranted.";
     } else if (finding == "spo2_trend_falling") {
-        return "Declining oxygen saturation over time suggests worsening respiratory function or airway compromise. Early intervention may prevent acute decompensation.";
+        base = "Declining oxygen saturation over time suggests worsening respiratory function or airway compromise. Early intervention may prevent acute decompensation.";
     } else if (finding == "spo2_trend_rising") {
-        return "Improving oxygen saturation indicates positive response to interventions or improving respiratory status.";
+        base = "Improving oxygen saturation indicates positive response to interventions or improving respiratory status.";
     } else if (finding == "critical_hr") {
-        return "Critically abnormal heart rate requires immediate assessment. Bradycardia <40 or tachycardia >130 can compromise cardiac output.";
+        base = "Critically abnormal heart rate requires immediate assessment. Bradycardia <40 or tachycardia >130 can compromise cardiac output.";
     } else if (finding == "abnormal_hr") {
-        return "Heart rate outside normal range warrants assessment for potential causes and patient symptoms.";
+        base = "Heart rate outside normal range warrants assessment for potential causes and patient symptoms.";
     } else if (finding == "hypoxia") {
-        return "SpO2 <90% indicates hypoxemia requiring immediate intervention. Assess airway, breathing, consider supplemental oxygen.";
+        base = "SpO2 <90% indicates hypoxemia requiring immediate intervention. Assess airway, breathing, consider supplemental oxygen.";
     } else if (finding == "low_spo2") {
-        return "SpO2 below 95% suggests suboptimal oxygen saturation. Monitor closely and assess for respiratory distress.";
+        base = "SpO2 below 95% suggests suboptimal oxygen saturation. Monitor closely and assess for respiratory distress.";
     } else if (finding == "respiratory_compromise") {
-        return "Combined pattern of tachycardia, low SpO2, and/or tachypnea suggests respiratory compromise. Consider respiratory assessment and potential need for escalation.";
+        base = "Combined pattern of tachycardia, low SpO2, and/or tachypnea suggests respiratory compromise. Consider respiratory assessment and potential need for escalation.";
     } else if (finding == "shock_pattern") {
-        return "Tachycardia with hypotension may indicate compensatory shock. Assess for bleeding, sepsis, or cardiac causes. Consider rapid response activation.";
+        base = "Tachycardia with hypotension may indicate compensatory shock. Assess for bleeding, sepsis, or cardiac causes. Consider rapid response activation.";
+    } else {
+        base = "Clinical observation requires assessment and documentation.";
     }
-    
-    return "Clinical observation requires assessment and documentation.";
+
+    if (!engine) return base;
+    OpticTrigeminal* kg = engine->get_knowledge_graph();
+    if (!kg) return base;
+
+    // Query the training-corpus knowledge graph using the canned rationale
+    // itself as the query. Only append when the top hit is meaningfully
+    // separated from the runner-up (not just "top-1, whatever it is") --
+    // a weak, ambiguous match isn't worth surfacing next to clinically
+    // reviewed text. This is a design threshold, not a validated clinical
+    // one: with only one candidate, the RRF fusion in find_related_concepts
+    // has nothing to separate it from, so it's treated as confident too.
+    Embedding query_emb = engine->embed_text(base);
+    auto related = kg->find_related_concepts(query_emb, base, 3);
+    if (!related.empty() && (related.size() == 1 || related[0].second > related[1].second * 1.5f)) {
+        std::string snippet = related[0].first;
+        if (snippet.size() > 200) snippet = snippet.substr(0, 200) + "...";
+        base += " Related: " + snippet;
+    }
+
+    return base;
 }
 
 std::vector<std::string> ClinicalAnalyzer::suggest_actions(std::string observation_type, std::string severity) {

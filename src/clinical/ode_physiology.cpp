@@ -162,14 +162,27 @@ void apply_drug_effects(InternalPhysiology& phys, std::vector<ActiveDrug>& activ
     for (auto& drug : active_drugs) {
         switch (drug.type) {
             case DrugType::Crystalloid:
-                phys.circulating_volume = std::min(1.3f, phys.circulating_volume + 0.015f * drug.dose * dt_seconds);
+                // Was reaching its cap in ~20s at a typical dose -- too fast
+                // for a bolus that in reality takes minutes to redistribute
+                // and show hemodynamic effect. Slowed ~4x (full effect now
+                // ~75s at dose 1.0).
+                phys.circulating_volume = std::min(1.3f, phys.circulating_volume + 0.004f * drug.dose * dt_seconds);
                 break;
             case DrugType::Oxygen:
                 phys.oxygenation_efficiency = std::min(1.0f, phys.oxygenation_efficiency + 0.02f * drug.dose * dt_seconds);
                 break;
             case DrugType::Norepinephrine:
-                phys.systemic_vascular_resistance = std::min(2.5f, phys.systemic_vascular_resistance + 0.02f * drug.dose * dt_seconds);
-                phys.contractility = std::min(1.8f, phys.contractility + 0.01f * drug.dose * dt_seconds);
+                // Ceiling lowered from 2.5/1.8 to 1.7/1.4 -- the higher
+                // ceiling represented a maximal/dangerous dose with no
+                // titration logic to stop short of it (this model is
+                // open-loop: dose stays constant until the drug wears off,
+                // unlike real practice where a clinician titrates to a
+                // target MAP), so a continuously-applied dose would ride the
+                // effect all the way to that ceiling and overshoot into
+                // hypertension. 1.7/1.4 represents a typical, non-maximal
+                // clinical dose instead.
+                phys.systemic_vascular_resistance = std::min(1.7f, phys.systemic_vascular_resistance + 0.02f * drug.dose * dt_seconds);
+                phys.contractility = std::min(1.4f, phys.contractility + 0.01f * drug.dose * dt_seconds);
                 break;
             case DrugType::BroadSpectrumAntibiotic:
                 phys.infection_burden = std::max(0.0f, phys.infection_burden - 0.006f * drug.dose * dt_seconds);

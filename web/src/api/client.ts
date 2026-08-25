@@ -24,7 +24,10 @@ import type {
   Cohort,
   ImportedCredential,
   CohortDashboard,
-  TrainingNoteDraft
+  TrainingNoteDraft,
+  PatientFork,
+  ForkSummary,
+  ForkInterventionType
 } from './types';
 import { getWasmBridge } from './wasm-bridge';
 
@@ -280,6 +283,37 @@ export class ApiClient {
   async getChartEntriesRemote(patientId: number): Promise<{ entry_id: string; type: string; content: string; nurse: string; timestamp: number }[]> {
     const result = await this.request<any>('GET', `/api/clinical/chart?patient_id=${patientId}`);
     return result.entries || [];
+  }
+
+  // =========================================================================
+  // CCPC: COUNTERFACTUAL FORKS
+  // =========================================================================
+
+  async createFork(
+    patientId: number,
+    fromTimestamp: number,
+    intervention: { type: ForkInterventionType; dose?: number } | null,
+    durationSeconds: number
+  ): Promise<PatientFork> {
+    return this.request<PatientFork>('POST', '/api/clinical/fork', {
+      patient_id: patientId,
+      from_timestamp: fromTimestamp,
+      intervention: intervention || undefined,
+      duration_seconds: durationSeconds
+    });
+  }
+
+  async getFork(forkId: string): Promise<PatientFork> {
+    return this.request<PatientFork>('GET', `/api/clinical/fork?fork_id=${encodeURIComponent(forkId)}`);
+  }
+
+  async listForks(patientId: number): Promise<ForkSummary[]> {
+    const result = await this.request<{ forks: ForkSummary[] }>('GET', `/api/clinical/forks?patient_id=${patientId}`);
+    return result.forks || [];
+  }
+
+  async deleteFork(forkId: string): Promise<{ status: string }> {
+    return this.request('POST', '/api/clinical/fork/delete', { fork_id: forkId });
   }
 
   // =========================================================================

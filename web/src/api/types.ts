@@ -97,8 +97,48 @@ export interface Patient {
   // ChartEntry.timestamp (that one's a Date; this is raw seconds -- multiply
   // by 1000 for a JS Date, matching how ChartEntry.timestamp is parsed).
   history_timestamps: number[];
+  // Unix seconds, one per full resumable state snapshot (deeper ring buffer
+  // than history_timestamps above -- see include/clinical_sim.h's
+  // PatientSnapshot). These are the points a counterfactual fork can branch
+  // from (POST /api/clinical/fork's from_timestamp).
+  snapshot_timestamps: number[];
   nurse_notes: string;
 }
+
+// CCPC: counterfactual forks =================================================
+
+export interface ForkTrajectoryPoint {
+  timestamp: number; // unix seconds
+  hr: number;
+  rr: number;
+  spo2: number;
+  bp_sys: number;
+  bp_dia: number;
+  temp: number;
+  lactate: number;
+  crisis_type: string;
+}
+
+export interface PatientFork {
+  fork_id: string;
+  intervention_label: string;
+  trajectory: ForkTrajectoryPoint[];
+}
+
+export interface ForkSummary {
+  fork_id: string;
+  forked_from_timestamp: number;
+  created_at: number;
+  intervention_label: string;
+  trajectory_length: number;
+}
+
+export type ForkInterventionType =
+  | 'administer_fluids'
+  | 'administer_oxygen'
+  | 'start_vasopressor'
+  | 'administer_antibiotics'
+  | 'administer_antipyretic';
 
 export interface PatientObservation {
   patient_id: number;

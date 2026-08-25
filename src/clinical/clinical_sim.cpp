@@ -1,4 +1,5 @@
 #include "../include/clinical_sim.h"
+#include "../include/ode_physiology.h"
 #include <cstdlib>
 #include <cmath>
 #include <iostream>
@@ -42,11 +43,16 @@ void ClinicalSimulator::initialize(int patient_count) {
         p.vitals.crisis_type = "";
         p.vitals.drift_variance = 0.0;
         
-        // History Init
+        // History Init -- all identical at boot (real ticks haven't run
+        // yet), so every sample gets the same initial timestamp too. That's
+        // honest: nothing happened before the sim started.
+        std::time_t init_ts = std::time(nullptr);
         for(int j=0; j<20; j++) {
             p.hr_history.push_back(p.vitals.hr);
+            p.rr_history.push_back(p.vitals.rr);
             p.spo2_history.push_back(p.vitals.spo2);
             p.temp_history.push_back(p.vitals.temp);
+            p.history_timestamps.push_back(init_ts);
         }
         
         p.nurse_notes = "";
@@ -57,85 +63,66 @@ void ClinicalSimulator::initialize(int patient_count) {
 
 void ClinicalSimulator::update(int tick_delta_ms) {
     current_tick++;
-    
+    float dt_seconds = std::max(0.0f, static_cast<float>(tick_delta_ms) / 1000.0f);
+
     for (auto& p : patients) {
-        update_patient_vitals(p);
+        update_patient_vitals(p, dt_seconds);
     }
 }
 
-void ClinicalSimulator::update_patient_vitals(Patient& p) {
-    // Determine target based on state
-    int target_hr = 75;
-    int target_rr = 16;
-    int target_spo2 = 98;
-    int target_sys = 120;
-    float target_temp = 37.0f;
-    
-    if (p.vitals.is_crisis) {
-        // Crisis targets
-        if (p.vitals.crisis_type == "Respiratory Failure") {
-             target_hr = 115;
-             target_rr = 32;
-             target_spo2 = 82;
-             target_sys = 150;
-        } else if (p.vitals.crisis_type == "Sepsis") {
-             target_hr = 120;
-             target_rr = 24;
-             target_spo2 = 92;
-             target_sys = 85; // Hypotension
-        }
+void ClinicalSimulator::update_patient_vitals(Patient& p, float dt_seconds) {
+    // Crisis and any active drugs modify the underlying physiology
+    // parameters; step_physiology then integrates the ODE and derives
+    // every observable vital from the resulting shared state -- see
+    // include/ode_physiology.h for why this replaced the old
+    // independent-per-vital random walk.
+    apply_crisis_physiology(p.physiology, p.vitals.crisis_type, dt_seconds);
+    apply_drug_effects(p.physiology, p.active_drugs, dt_seconds);
+    step_physiology(p.physiology, p.vitals, dt_seconds);
+
+    // Sepsis escalates to Septic Shock once hypotension sets in on top of
+    // significant infection burden -- the same real distinction the crisis
+    // physiology modifiers above already encode (Sepsis and "Septic Shock"
+    // share identical parameter effects; this only changes crisis_type so
+    // it's visible/scoreable/chartable as a distinct, more severe state).
+    if (p.vitals.crisis_type == "Sepsis" && p.vitals.bp_sys < 90 && p.physiology.infection_burden > 0.6f) {
+        p.vitals.crisis_type = "Septic Shock";
     }
-    
-    // Random walk towards target
-    // HR
-    int hr_drift = (rand() % 5) - 2;
-    if (p.vitals.hr < target_hr) hr_drift += 1;
-    if (p.vitals.hr > target_hr) hr_drift -= 1;
-    p.vitals.hr += hr_drift;
-    
-    // SpO2
-    int spo2_drift = (rand() % 3) - 1;
-    if (p.vitals.spo2 < target_spo2) spo2_drift += 1;
-    if (p.vitals.spo2 > target_spo2) spo2_drift -= 1;
-    p.vitals.spo2 += spo2_drift;
-    if (p.vitals.spo2 > 100) p.vitals.spo2 = 100;
-    
-    // RR
-    if (current_tick % 5 == 0) { // Slower update for RR
-        int rr_drift = (rand() % 3) - 1;
-        if (p.vitals.rr < target_rr) rr_drift += 1;
-        if (p.vitals.rr > target_rr) rr_drift -= 1;
-        p.vitals.rr += rr_drift;
-    }
-    
-    // BP
-    if (current_tick % 10 == 0) {
-        int sys_drift = (rand() % 5) - 2;
-        if (p.vitals.bp_sys < target_sys) sys_drift += 1;
-        if (p.vitals.bp_sys > target_sys) sys_drift -= 1;
-        p.vitals.bp_sys += sys_drift;
-        p.vitals.bp_dia = p.vitals.bp_sys * 0.6 + ((rand()%10)-5);
-    }
-    
-    // Temp
-    if (current_tick % 20 == 0) {
-        float temp_drift = (static_cast<float>(rand() % 3) - 1.0f) / 10.0f; // -0.1 to 0.1
-        if (p.vitals.temp < target_temp) temp_drift += 0.05f;
-        if (p.vitals.temp > target_temp) temp_drift -= 0.05f;
-        p.vitals.temp += temp_drift;
-    }
-    
-    // Update histories
+
+    // Update histories -- appended every tick regardless of whether that
+    // vital's own value actually changed this tick (matches temp_history's
+    // existing behavior, which already appends every tick despite temp only
+    // changing every 20th one). Keeps all four arrays + history_timestamps
+    // the same length, in lockstep.
     p.hr_history.erase(p.hr_history.begin());
     p.hr_history.push_back(p.vitals.hr);
+    p.rr_history.erase(p.rr_history.begin());
+    p.rr_history.push_back(p.vitals.rr);
     p.spo2_history.erase(p.spo2_history.begin());
     p.spo2_history.push_back(p.vitals.spo2);
     p.temp_history.erase(p.temp_history.begin());
     p.temp_history.push_back(p.vitals.temp);
+    p.history_timestamps.erase(p.history_timestamps.begin());
+    p.history_timestamps.push_back(std::time(nullptr));
     
-    // Random Crisis Trigger (very rare)
-    if (!p.vitals.is_crisis && (rand() % 1000) == 0) {
-        trigger_crisis(p.id, "Respiratory Failure");
+    // Crisis onset: low-probability random trigger per type, same spirit as
+    // before (a real patient's crisis doesn't announce itself in advance).
+    // The "hybrid" element the plan called for is the Sepsis -> Septic
+    // Shock *escalation* above, driven by a real deteriorating condition
+    // (sustained hypotension + rising infection burden) rather than by
+    // chance -- a qSOFA-style condition triggering a brand-new crisis from
+    // a fully healthy baseline isn't meaningful, since a healthy patient's
+    // vitals essentially never cross qSOFA's thresholds by random drift
+    // alone; qSOFA's real clinical role is escalation/severity signaling
+    // for an already-abnormal patient, which is what it's used for here.
+    if (!p.vitals.is_crisis) {
+        if ((rand() % 1000) == 0) {
+            trigger_crisis(p.id, "Respiratory Failure");
+        } else if ((rand() % 1000) == 0) {
+            trigger_crisis(p.id, "Sepsis");
+        } else if ((rand() % 1000) == 0) {
+            trigger_crisis(p.id, "Hypovolemic Shock");
+        }
     }
 }
 
@@ -169,6 +156,14 @@ void ClinicalSimulator::reset_patient(int patient_id) {
             p.acuity_score = 3;
             p.vitals.hr = 75;
             p.vitals.spo2 = 98;
+            // Explicit, instant reset of the hidden physiology state too --
+            // without this, a reset patient's *displayed* vitals looked
+            // healthy immediately but the underlying InternalPhysiology
+            // (circulating_volume, infection_burden, etc.) stayed wherever
+            // the crisis had driven it, so the very next tick would pull
+            // vitals right back toward the old crisis state.
+            reset_physiology_to_baseline(p.physiology);
+            p.active_drugs.clear();
             break;
         }
     }
@@ -198,15 +193,35 @@ int ClinicalSimulator::admit_patient(const std::string& name, const std::string&
     p.vitals.crisis_type = "";
     p.vitals.drift_variance = 0.0;
 
+    std::time_t admit_ts = std::time(nullptr);
     for (int j = 0; j < 20; j++) {
         p.hr_history.push_back(p.vitals.hr);
+        p.rr_history.push_back(p.vitals.rr);
         p.spo2_history.push_back(p.vitals.spo2);
         p.temp_history.push_back(p.vitals.temp);
+        p.history_timestamps.push_back(admit_ts);
     }
 
     p.active = true;
     patients.push_back(p);
     return p.id;
+}
+
+bool ClinicalSimulator::administer_drug(int patient_id, DrugType type, float dose, float duration_seconds) {
+    for (auto& p : patients) {
+        if (p.id == patient_id) {
+            ActiveDrug drug;
+            drug.type = type;
+            drug.dose = dose;
+            drug.remaining_seconds = duration_seconds;
+            p.active_drugs.push_back(drug);
+            if (type == DrugType::Oxygen) {
+                p.vitals.on_oxygen = true;
+            }
+            return true;
+        }
+    }
+    return false;
 }
 
 bool ClinicalSimulator::discharge_patient(int patient_id, const std::string& reason) {

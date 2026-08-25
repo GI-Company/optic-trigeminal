@@ -10,7 +10,8 @@ import { ClinicalDashboard } from '@components/ClinicalDashboard';
 import { AdminDashboard } from '@components/AdminDashboard';
 import { SystemDashboard } from '@components/SystemDashboard';
 import { InstructorDashboard } from '@components/InstructorDashboard';
-import { PatientDetail } from '@components/PatientDetail';
+import { PatientDetail, type VitalKey } from '@components/PatientDetail';
+import { VitalHistoryPanel } from '@components/VitalHistoryPanel';
 import { TrainingMode } from '@components/TrainingMode';
 import { TrainingDebrief } from '@components/TrainingDebrief';
 import { ScenarioSelector } from '@components/ScenarioSelector';
@@ -370,6 +371,26 @@ function renderPatientDetail(): void {
         showToast('SBAR generated', 'success');
       } catch (error) {
         showToast(`Failed to generate SBAR: ${error}`, 'error');
+      }
+    },
+    onVitalClick: async (vital: VitalKey) => {
+      const root = document.getElementById('modal-root');
+      if (!root) return;
+      let panel: VitalHistoryPanel | null = null;
+      try {
+        // Fresh, not cached -- observations are computed live per-request
+        // (ClinicalAnalyzer::analyze_patient), so this is the current state.
+        const observations = await apiClient.getPatientObservations(patient.id);
+        panel = new VitalHistoryPanel({
+          vital,
+          patient: store.getSelectedPatient() || patient,
+          observations,
+          chartEntries: store.getChartEntries(),
+          onClose: () => { panel?.unmount(); }
+        });
+        panel.mount(root);
+      } catch (error) {
+        showToast(`Failed to load vital history: ${error}`, 'error');
       }
     }
   });

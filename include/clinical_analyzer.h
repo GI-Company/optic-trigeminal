@@ -43,10 +43,13 @@ public:
     
     // Trend detection for vital signs
     TrendAnalysis analyze_trend(const std::vector<int>& history, std::string vital_type);
-    
-    // Threshold checking
-    bool is_critical_threshold(int value, std::string vital_type);
-    bool is_warning_threshold(int value, std::string vital_type);
+
+    // Threshold checking. float (not int) so temperature (patient.vitals.temp
+    // is a float) can reuse these directly -- existing int-valued vitals
+    // (hr/rr/spo2/bp_sys) convert to float exactly at the call site, no
+    // behavior change.
+    bool is_critical_threshold(float value, std::string vital_type);
+    bool is_warning_threshold(float value, std::string vital_type);
     
     // Pattern recognition
     bool detect_respiratory_compromise(const Patient& p);
@@ -57,20 +60,24 @@ public:
     std::vector<std::string> correlate_vitals(const Patient& p);
     
 private:
-    // Threshold values
+    // Threshold values. float (not int) so temp_thresholds can express
+    // proper decimal precision (e.g. 38.0f) -- the existing integer-valued
+    // vitals' thresholds (e.g. 40) still initialize the same way, just as
+    // float literals now.
     struct VitalThresholds {
-        int critical_low;
-        int warning_low;
-        int normal_low;
-        int normal_high;
-        int warning_high;
-        int critical_high;
+        float critical_low;
+        float warning_low;
+        float normal_low;
+        float normal_high;
+        float warning_high;
+        float critical_high;
     };
-    
+
     VitalThresholds hr_thresholds;
     VitalThresholds spo2_thresholds;
     VitalThresholds bp_sys_thresholds;
     VitalThresholds rr_thresholds;
+    VitalThresholds temp_thresholds;
     
     // Helper functions
     // engine is used to reach both OpticTrigeminal (the retrieval-augmentation

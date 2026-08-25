@@ -58,7 +58,11 @@ rosters:
 ### Requirements
 - C++17 compatible compiler (clang++ or g++)
 - Standard C++ library with threading support
-- No external library dependencies (uses system `curl` for Groq)
+- No external library dependencies, with one deliberate exception: password hashing
+  vendors the official Argon2id reference implementation (`third_party/argon2/`, its
+  own CC0/Apache-2.0 license — see `third_party/argon2/LICENSE`) rather than hand-
+  rolling a memory-hard KDF (uses system `curl` for Groq, which is a subprocess call,
+  not a linked dependency)
 
 ### Build
 ```bash
@@ -122,6 +126,6 @@ For architectural details and audit reports, explore the `docs/` folder.
 
 ---
 
-**Status**: ✅ Production Ready
+**Status**: Active prototype — see [LIMITATIONS.md](LIMITATIONS.md) for what's real vs. simplified
 **Version**: 3.0.0
-**Last Updated**: 2026-08-21
+**Last Updated**: 2026-08-24

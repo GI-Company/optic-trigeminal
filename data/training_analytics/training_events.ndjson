@@ -2546,3 +2546,94 @@
     "immutable": true
   }
 }
+{
+  "event_id": "EVT-1787547184-0",
+  "session_id": "HYPOTENSION_001_1787547184",
+  "scenario_id": "HYPOTENSION_001",
+  "timestamp": 1787547184,
+  "event_type": "SESSION_START",
+  "event_data": "{\"nurse_id\":\"RN_001\",\"age\":60,\"sex\":\"M\",\"diagnosis\":\"Post-op abdominal\",\"hr\":87,\"rr\":17,\"spo2\":96,\"bp_sys\":112,\"bp_dia\":71,\"temp\":37.9289}",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787547194-1",
+  "session_id": "HYPOTENSION_001_1787547184",
+  "scenario_id": "",
+  "timestamp": 1787547194,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id=RN_001 timely=true grade=partially_correct delta=0.020000",
+  "elapsed_seconds": 120,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787547195-2",
+  "session_id": "HYPOTENSION_001_1787547184",
+  "scenario_id": "",
+  "timestamp": 1787547195,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=apply_iv_fluids nurse_id=RN_001 timely=false grade=premature delta=-0.020000",
+  "elapsed_seconds": 120,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787547196-3",
+  "session_id": "HYPOTENSION_001_1787547184",
+  "scenario_id": "",
+  "timestamp": 1787547196,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=start_vasopressor nurse_id=RN_001 timely=false grade=premature delta=-0.020000",
+  "elapsed_seconds": 180,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787547249-4",
+  "session_id": "HYPOTENSION_001_1787547184",
+  "scenario_id": "",
+  "timestamp": 1787547249,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=apply_iv_fluids nurse_id=RN_001 timely=true grade=correct delta=0.100000",
+  "elapsed_seconds": 960,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787547251-5",
+  "session_id": "HYPOTENSION_001_1787547184",
+  "scenario_id": "",
+  "timestamp": 1787547251,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=start_vasopressor nurse_id=RN_001 timely=true grade=correct delta=0.100000",
+  "elapsed_seconds": 960,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787547252-6",
+  "session_id": "HYPOTENSION_001_1787547184",
+  "scenario_id": "",
+  "timestamp": 1787547252,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id=RN_001 timely=true grade=partially_correct delta=0.020000",
+  "elapsed_seconds": 1020,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}

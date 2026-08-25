@@ -15,6 +15,7 @@
 #include "fhir_client.h"
 #include "crypto_utils.h"
 #include "embedded_web_assets.h"
+#include "clinical_scoring.h"
 #include <chrono>
 #include <cstdint>
 #include <iomanip>
@@ -838,6 +839,11 @@ HTTPServer::Response HTTPServer::handle_patients(const Request& req) {
             if (i > 0) body << ",";
             body << p.hr_history[i];
         }
+        body << "],\"rr_history\":[";
+        for (size_t i = 0; i < p.rr_history.size(); ++i) {
+            if (i > 0) body << ",";
+            body << p.rr_history[i];
+        }
         body << "],\"spo2_history\":[";
         for (size_t i = 0; i < p.spo2_history.size(); ++i) {
             if (i > 0) body << ",";
@@ -848,9 +854,46 @@ HTTPServer::Response HTTPServer::handle_patients(const Request& req) {
             if (i > 0) body << ",";
             body << p.temp_history[i];
         }
+        // Same convention as StoredChartEntry.timestamp (handle_chart) --
+        // raw unix seconds, so the frontend can correlate a vitals sample
+        // with a chart note by comparing these directly.
+        body << "],\"history_timestamps\":[";
+        for (size_t i = 0; i < p.history_timestamps.size(); ++i) {
+            if (i > 0) body << ",";
+            body << static_cast<long>(p.history_timestamps[i]);
+        }
         body << "]"
-             << ",\"nurse_notes\":\"" << json_escape(p.nurse_notes) << "\""
-             << "}";
+             << ",\"nurse_notes\":\"" << json_escape(p.nurse_notes) << "\"";
+
+        // Standard clinical scores, computed live from current vitals (see
+        // include/clinical_scoring.h). on_vasopressor is always false here --
+        // this simulator has no active-drug tracking yet (Phase 3 territory),
+        // so the cardiovascular sub-score of partial-SOFA is based on MAP
+        // alone until that lands. fio2 approximates 0.4 (nasal cannula) when
+        // on supplemental O2, 0.21 (room air) otherwise -- a simplification,
+        // not a tracked real FiO2 setting.
+        NEWS2Result news2 = calculate_news2(p.vitals);
+        qSOFAResult qsofa = calculate_qsofa(p.vitals);
+        float approx_fio2 = p.vitals.on_oxygen ? 0.4f : 0.21f;
+        PartialSOFAResult psofa = calculate_partial_sofa(p.vitals, approx_fio2, false);
+        MEWSResult mews = calculate_mews(p.vitals);
+
+        body << ",\"news2\":{\"total_score\":" << news2.total_score
+             << ",\"risk_level\":\"" << json_escape(news2.risk_level) << "\""
+             << ",\"red_score\":" << (news2.red_score ? "true" : "false")
+             << ",\"clinical_response\":\"" << json_escape(news2.clinical_response) << "\"}";
+        body << ",\"qsofa\":{\"score\":" << qsofa.score
+             << ",\"high_risk\":" << (qsofa.high_risk ? "true" : "false")
+             << ",\"interpretation\":\"" << json_escape(qsofa.interpretation) << "\"}";
+        body << ",\"partial_sofa\":{\"partial_total\":" << psofa.partial_total
+             << ",\"respiration\":" << psofa.respiration
+             << ",\"cardiovascular\":" << psofa.cardiovascular
+             << ",\"cns\":" << psofa.cns
+             << ",\"severity\":\"" << json_escape(psofa.severity) << "\"}";
+        body << ",\"mews\":{\"total_score\":" << mews.total_score
+             << ",\"risk_level\":\"" << json_escape(mews.risk_level) << "\"}";
+
+        body << "}";
     }
     body << "]}";
 
@@ -1565,7 +1608,25 @@ HTTPServer::Response HTTPServer::handle_action(const Request& req) {
     }
     
     g_auth_manager->log_auth_decision(token->user_id, "CHART_ALLOW_" + action, true);
-    
+
+    // Recognized actions get real mechanical consequences on vitals via the
+    // physiology model (include/ode_physiology.h), not just a logged note --
+    // this is the dashboard/ClinicalSimulator flow specifically, separate
+    // from ScenarioRuntime's own independent action-effects system used by
+    // scripted TrainingMode scenarios. dose/duration are illustrative
+    // typical-dose defaults, not calibrated to any real dosing protocol.
+    if (action == "administer_fluids") {
+        sim.administer_drug(pid, DrugType::Crystalloid, 1.0f, 900.0f);
+    } else if (action == "administer_oxygen") {
+        sim.administer_drug(pid, DrugType::Oxygen, 1.0f, 1800.0f);
+    } else if (action == "start_vasopressor") {
+        sim.administer_drug(pid, DrugType::Norepinephrine, 1.0f, 1800.0f);
+    } else if (action == "administer_antibiotics") {
+        sim.administer_drug(pid, DrugType::BroadSpectrumAntibiotic, 1.0f, 3600.0f);
+    } else if (action == "administer_antipyretic") {
+        sim.administer_drug(pid, DrugType::Antipyretic, 1.0f, 1800.0f);
+    }
+
     // Create a synthetic "observation" representing the nurse's intervention
     ClinicalObservation obs;
     obs.patient_id = pid;

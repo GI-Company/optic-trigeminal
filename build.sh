@@ -22,8 +22,24 @@ mkdir -p build
 
 cd build
 
+# Argon2id (password hashing) is vendored C, not C++ -- clang++ force-compiles
+# .c files as C++ (breaking void*-conversion code that's valid C but not
+# C++), so these are compiled once here with a real C compiler into object
+# files, then linked into all three targets below alongside the C++ objects.
+# argon2.h wraps its declarations in `extern "C" { ... }` under __cplusplus,
+# so the C++ callers in crypto_utils.cpp link against them correctly.
+ARGON2_INC="-I../third_party/argon2/include -I../third_party/argon2/src"
+ARGON2_OBJS="argon2.o core.o encoding.o ref.o thread.o blake2b.o"
+echo "Compiling vendored Argon2id..."
+clang -std=c99 -O3 $ARGON2_INC -c ../third_party/argon2/src/argon2.c -o argon2.o
+clang -std=c99 -O3 $ARGON2_INC -c ../third_party/argon2/src/core.c -o core.o
+clang -std=c99 -O3 $ARGON2_INC -c ../third_party/argon2/src/encoding.c -o encoding.o
+clang -std=c99 -O3 $ARGON2_INC -c ../third_party/argon2/src/ref.c -o ref.o
+clang -std=c99 -O3 $ARGON2_INC -c ../third_party/argon2/src/thread.c -o thread.o
+clang -std=c99 -O3 $ARGON2_INC -c ../third_party/argon2/src/blake2/blake2b.c -o blake2b.o
+
 # Compile all source files
-clang++ -std=c++17 -O3 -march=native -I../include \
+clang++ -std=c++17 -O3 -march=native -I../include $ARGON2_INC \
     ../src/kernel/neural_components.cpp \
     ../src/kernel/bm25_index.cpp \
     ../src/kernel/specialization.cpp \
@@ -59,7 +75,9 @@ clang++ -std=c++17 -O3 -march=native -I../include \
     ../src/kernel/response_pipeline.cpp \
     ../src/kernel/multimodal_handler.cpp \
     ../src/clinical/clinical_sim.cpp \
+    ../src/clinical/ode_physiology.cpp \
     ../src/clinical/clinical_analyzer.cpp \
+    ../src/clinical/clinical_scoring.cpp \
     ../src/clinical/training_scenario.cpp \
     ../src/clinical/training_analytics.cpp \
     ../src/server/http_server.cpp \
@@ -69,6 +87,7 @@ clang++ -std=c++17 -O3 -march=native -I../include \
     ../src/kernel/acmk_planes.cpp \
     ../src/kernel/state_plane.cpp \
     ../src/server/main.cpp \
+    $ARGON2_OBJS \
     -pthread \
     -o optic-trigeminal
 
@@ -77,7 +96,7 @@ echo "Binary: ./build/optic-trigeminal"
 
 echo ""
 echo "Building integration tests..."
-clang++ -std=c++17 -O3 -march=native -I../include \
+clang++ -std=c++17 -O3 -march=native -I../include $ARGON2_INC \
     ../src/kernel/neural_components.cpp \
     ../src/kernel/bm25_index.cpp \
     ../src/kernel/specialization.cpp \
@@ -118,6 +137,7 @@ clang++ -std=c++17 -O3 -march=native -I../include \
     ../src/server/acmk_api_handler.cpp \
     ../src/kernel/acmk_planes.cpp \
     ../src/kernel/state_plane.cpp \
+    $ARGON2_OBJS \
     -pthread \
     -o acmk_integration_test
 
@@ -126,7 +146,7 @@ echo "Test Binary: ./build/acmk_integration_test"
 
 echo ""
 echo "Building admin CLI..."
-clang++ -std=c++17 -O3 -march=native -I../include \
+clang++ -std=c++17 -O3 -march=native -I../include $ARGON2_INC \
     ../src/kernel/neural_components.cpp \
     ../src/kernel/bm25_index.cpp \
     ../src/kernel/specialization.cpp \
@@ -168,8 +188,19 @@ clang++ -std=c++17 -O3 -march=native -I../include \
     ../src/server/acmk_api_handler.cpp \
     ../src/kernel/acmk_planes.cpp \
     ../src/kernel/state_plane.cpp \
+    $ARGON2_OBJS \
     -pthread \
     -o acmk_admin_cli
 
 echo "Admin CLI build complete!"
 echo "CLI Binary: ./build/acmk_admin_cli"
+
+echo ""
+echo "Building physiology fuzz test..."
+clang++ -std=c++17 -O2 -I../include \
+    ../src/clinical/ode_physiology.cpp \
+    ../tests/physiology_fuzz_test.cpp \
+    -o physiology_fuzz_test
+
+echo "Physiology fuzz test build complete!"
+echo "Test Binary: ./build/physiology_fuzz_test"

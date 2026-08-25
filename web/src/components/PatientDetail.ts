@@ -1,6 +1,8 @@
 import { Component } from './component';
 import type { Patient, ChartEntry, RoleCapabilities } from '@api/types';
 
+export type VitalKey = 'hr' | 'rr' | 'spo2' | 'temp';
+
 export interface PatientDetailConfig {
   patient: Patient;
   chartEntries: ChartEntry[];
@@ -9,6 +11,7 @@ export interface PatientDetailConfig {
   onBack: () => void;
   onAddNote: (content: string) => void;
   onGenerateSBAR: () => void;
+  onVitalClick: (vital: VitalKey) => void;
 }
 
 export class PatientDetail extends Component {
@@ -53,10 +56,10 @@ export class PatientDetail extends Component {
           </div>
 
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            ${this.renderVitalsCard('Heart Rate', patient.vitals.hr, 'bpm', patient.vitals.hr > 100 ? 'text-red-400' : 'text-cyan-400')}
-            ${this.renderVitalsCard('Respiratory Rate', patient.vitals.rr, 'breaths/min', 'text-slate-200')}
-            ${this.renderVitalsCard('Oxygen Sat.', patient.vitals.spo2, '%', patient.vitals.spo2 < 95 ? 'text-red-400' : 'text-cyan-400')}
-            ${this.renderVitalsCard('Temperature', patient.vitals.temp.toFixed(1), '°C', 'text-amber-400')}
+            ${this.renderVitalsCard('hr', 'Heart Rate', patient.vitals.hr, 'bpm', patient.vitals.hr > 100 ? 'text-red-400' : 'text-cyan-400')}
+            ${this.renderVitalsCard('rr', 'Respiratory Rate', patient.vitals.rr, 'breaths/min', 'text-slate-200')}
+            ${this.renderVitalsCard('spo2', 'Oxygen Sat.', patient.vitals.spo2, '%', patient.vitals.spo2 < 95 ? 'text-red-400' : 'text-cyan-400')}
+            ${this.renderVitalsCard('temp', 'Temperature', patient.vitals.temp.toFixed(1), '°C', 'text-amber-400')}
           </div>
 
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -100,15 +103,16 @@ export class PatientDetail extends Component {
     `;
   }
 
-  private renderVitalsCard(label: string, value: string | number, unit: string, colorClass: string): string {
+  private renderVitalsCard(vital: VitalKey, label: string, value: string | number, unit: string, colorClass: string): string {
     return `
-      <div class="glass-card p-5 relative overflow-hidden group">
+      <div class="vital-card glass-card p-5 relative overflow-hidden group cursor-pointer hover:border-cyan-500/40 transition-colors" data-vital="${vital}" role="button" tabindex="0" aria-label="View ${label} history">
         <div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
         <div class="text-[11px] text-slate-500 font-medium uppercase tracking-wider mb-2">${label}</div>
         <div class="flex items-baseline gap-1">
           <div class="text-4xl font-bold ${colorClass}">${value}</div>
           <div class="text-xs text-slate-500 font-medium">${unit}</div>
         </div>
+        <div class="mt-2 text-[10px] text-slate-600 group-hover:text-cyan-400 transition-colors">View history →</div>
       </div>
     `;
   }
@@ -153,6 +157,12 @@ export class PatientDetail extends Component {
   private setupEventListeners(): void {
     this.on('#btn-back', 'click', () => {
       this.config.onBack();
+    });
+
+    this.on('.vital-card', 'click', (e) => {
+      const card = (e.currentTarget as HTMLElement);
+      const vital = card.dataset.vital as VitalKey | undefined;
+      if (vital) this.config.onVitalClick(vital);
     });
 
     if (this.config.roleCapabilities.canChartActions) {

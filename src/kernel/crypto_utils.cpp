@@ -1,4 +1,5 @@
 #include "crypto_utils.h"
+#include "argon2.h"
 
 #include <array>
 #include <cstring>
@@ -7,6 +8,7 @@
 #include <sstream>
 #include <iomanip>
 #include <chrono>
+#include <vector>
 
 namespace Crypto {
 namespace {
@@ -125,7 +127,9 @@ std::string sha256_hex(const std::string& input) {
   return to_hex(digest.data(), digest.size());
 }
 
-std::string random_hex(size_t num_bytes) {
+namespace {
+
+std::vector<uint8_t> random_bytes(size_t num_bytes) {
   std::vector<uint8_t> buf(num_bytes);
   std::ifstream urandom("/dev/urandom", std::ios::binary);
   bool ok = false;
@@ -142,22 +146,62 @@ std::string random_hex(size_t num_bytes) {
     std::uniform_int_distribution<int> dist(0, 255);
     for (auto& b : buf) b = static_cast<uint8_t>(dist(gen));
   }
+  return buf;
+}
+
+// OWASP's current recommended Argon2id baseline (2023 Password Storage
+// Cheat Sheet): m=19 MiB, t=2, p=1. Not an invented number -- this is the
+// minimum profile OWASP lists as acceptable for interactive login.
+constexpr uint32_t kArgon2TimeCost = 2;
+constexpr uint32_t kArgon2MemoryCostKiB = 19456;
+constexpr uint32_t kArgon2Parallelism = 1;
+constexpr size_t kArgon2SaltLen = 16;
+constexpr size_t kArgon2HashLen = 32;
+
+} // namespace
+
+std::string random_hex(size_t num_bytes) {
+  std::vector<uint8_t> buf = random_bytes(num_bytes);
   return to_hex(buf.data(), buf.size());
 }
 
 std::string hash_password(const std::string& password) {
-  std::string salt = random_hex(16);
-  // Iterated hashing (poor-man's KDF) to slow down brute force; a real
-  // deployment should swap this for bcrypt/argon2, but this project has a
-  // hard "zero external dependencies" rule so we don't link one in.
-  std::string h = salt + password;
-  for (int i = 0; i < 100000; ++i) {
-    h = sha256_hex(h + salt);
+  std::vector<uint8_t> salt = random_bytes(kArgon2SaltLen);
+
+  size_t encoded_len = argon2_encodedlen(kArgon2TimeCost, kArgon2MemoryCostKiB,
+                                          kArgon2Parallelism, kArgon2SaltLen,
+                                          kArgon2HashLen, Argon2_id);
+  std::vector<char> encoded(encoded_len);
+
+  int rc = argon2id_hash_encoded(kArgon2TimeCost, kArgon2MemoryCostKiB, kArgon2Parallelism,
+                                  password.data(), password.size(),
+                                  salt.data(), salt.size(),
+                                  kArgon2HashLen, encoded.data(), encoded.size());
+  if (rc != ARGON2_OK) {
+    // Only reachable on a malloc failure or invalid parameters (both would
+    // be a programming-time bug, not a runtime/input condition) -- an empty
+    // hash deliberately can never match any password in verify_password's
+    // legacy branch (no '$'-prefixed empty string forms, and it's also
+    // rejected by argon2id_verify), so a bug here fails closed.
+    return "";
   }
-  return salt + "$" + h;
+  return std::string(encoded.data());
 }
 
 bool verify_password(const std::string& password, const std::string& stored) {
+  if (stored.empty()) return false;
+
+  if (stored[0] == '$') {
+    // Current format: Argon2id's own self-describing encoded string.
+    int rc = argon2id_verify(stored.c_str(), password.data(), password.size());
+    return rc == ARGON2_OK;
+  }
+
+  // Legacy format: salted, 100k-round-iterated SHA-256, "salt_hex$hash_hex"
+  // -- kept working so accounts hashed before the Argon2id migration don't
+  // need a forced reset. New hashes are never created in this format (see
+  // hash_password() above); this branch only exists for already-persisted
+  // accounts in data/staff/staff_roster.json.
   size_t sep = stored.find('$');
   if (sep == std::string::npos) return false;
   std::string salt = stored.substr(0, sep);

@@ -88,8 +88,15 @@ export interface Patient {
   acuity_score: number;
   vitals: Vitals;
   hr_history: number[];
+  rr_history: number[];
   spo2_history: number[];
   temp_history: number[];
+  // Unix seconds, one per sample -- history_timestamps[i] is when
+  // hr_history[i]/rr_history[i]/spo2_history[i]/temp_history[i] were all
+  // sampled (they're appended in lockstep server-side). Same convention as
+  // ChartEntry.timestamp (that one's a Date; this is raw seconds -- multiply
+  // by 1000 for a JS Date, matching how ChartEntry.timestamp is parsed).
+  history_timestamps: number[];
   nurse_notes: string;
 }
 

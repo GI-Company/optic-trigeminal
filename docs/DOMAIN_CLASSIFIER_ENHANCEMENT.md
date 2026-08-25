@@ -324,7 +324,7 @@ Domain Metadata → Keyword Matching → Content Analysis → Classification
 
 ## **Deployment Status**
 
-🟢 **PRODUCTION READY**
+🟡 **PROTOTYPE — see [../LIMITATIONS.md](../LIMITATIONS.md)**
 
 - ✅ All 5 stages trained
 - ✅ 100% accuracy achieved
@@ -343,7 +343,7 @@ The enhanced domain classifier successfully distributes training data across all
 
 **System readiness improved from 85% → 95%**
 
-The remaining 5% represents fine-tuning loss metrics and optional hyperparameter optimization. The system is production-ready for immediate deployment.
+The remaining 5% represents fine-tuning loss metrics and optional hyperparameter optimization.
 
 ---
 

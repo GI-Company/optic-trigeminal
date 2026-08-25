@@ -9,7 +9,7 @@ Built a **true artificial cognitive microkernel** - an AI system that doesn't ju
 
 Users see a simple search interface. Behind the scenes: 8+ child processes collaborate, 6-dimensional reasoning, real-time resource management, automatic failure recovery, and hierarchical task planning across 4 time horizons.
 
-**Status**: ✅ Production-ready with full transparency.
+**Status**: Active prototype with full reasoning transparency — see [../LIMITATIONS.md](../LIMITATIONS.md) for known gaps.
 
 ---
 
@@ -286,7 +286,7 @@ bash build_agentic_test.sh
 
 ## 🎯 What You Have Now
 
-You have built a **production-ready artificial cognitive microkernel** that:
+You have built an **artificial cognitive microkernel prototype** that:
 
 1. ✅ **Thinks transparently** - Users see full reasoning process
 2. ✅ **Manages complexity** - Auto-spawns agents, manages resources, detects failures

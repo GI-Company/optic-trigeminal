@@ -193,6 +193,11 @@ private:
     Response handle_scaffold(const Request& req);
     Response handle_action(const Request& req);
     Response handle_chart(const Request& req);
+    // CCPC foundation (counterfactual forks) -- see include/clinical_sim.h's
+    // PatientFork / ClinicalSimulator::create_fork.
+    Response handle_fork(const Request& req);          // POST creates, GET ?fork_id= retrieves one
+    Response handle_forks_list(const Request& req);     // GET ?patient_id= lists a patient's forks
+    Response handle_fork_delete(const Request& req);    // POST {fork_id}
     Response handle_sign_in(const Request& req);
     
     // Training mode handlers

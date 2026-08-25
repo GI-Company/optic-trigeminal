@@ -2637,3 +2637,224 @@
     "immutable": true
   }
 }
+{
+  "event_id": "EVT-1787619119-0",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "DKA_CRISIS_001",
+  "timestamp": 1787619119,
+  "event_type": "SESSION_START",
+  "event_data": "{\"nurse_id\":\"RN_001\",\"age\":32,\"sex\":\"F\",\"diagnosis\":\"Type 1 DM with DKA\",\"hr\":113,\"rr\":27,\"spo2\":94,\"bp_sys\":96,\"bp_dia\":59,\"temp\":38.8751}",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787619133-1",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "",
+  "timestamp": 1787619133,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id=RN_001 timely=true grade=partially_correct delta=0.020000",
+  "elapsed_seconds": 180,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787619137-2",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "",
+  "timestamp": 1787619137,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=iv_fluids nurse_id=RN_001 timely=true grade=correct delta=0.100000",
+  "elapsed_seconds": 240,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787619139-3",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "",
+  "timestamp": 1787619139,
+  "event_type": "FAILURE_TRIGGERED",
+  "event_data": "failure=cerebral_edema",
+  "elapsed_seconds": 300,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787619180-4",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "",
+  "timestamp": 1787619180,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=insulin_infusion nurse_id=RN_001 timely=true grade=correct delta=0.100000",
+  "elapsed_seconds": 900,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787619187-5",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "",
+  "timestamp": 1787619187,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id=RN_001 timely=true grade=partially_correct delta=0.020000",
+  "elapsed_seconds": 1020,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787619192-6",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "",
+  "timestamp": 1787619192,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=insulin_infusion nurse_id=RN_001 timely=true grade=correct delta=0.100000",
+  "elapsed_seconds": 1080,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787619197-7",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "",
+  "timestamp": 1787619197,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=insulin_infusion nurse_id=RN_001 timely=true grade=correct delta=0.100000",
+  "elapsed_seconds": 1140,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787619199-8",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "",
+  "timestamp": 1787619199,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=iv_fluids nurse_id=RN_001 timely=true grade=correct delta=0.100000",
+  "elapsed_seconds": 1200,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787619204-9",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "",
+  "timestamp": 1787619204,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=iv_fluids nurse_id=RN_001 timely=true grade=correct delta=0.100000",
+  "elapsed_seconds": 1260,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787619219-10",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "",
+  "timestamp": 1787619219,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=obtain_labs nurse_id=RN_001 timely=true grade=correct delta=0.100000",
+  "elapsed_seconds": 1440,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787619232-11",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "",
+  "timestamp": 1787619232,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=insulin_infusion nurse_id=RN_001 timely=true grade=correct delta=0.100000",
+  "elapsed_seconds": 1680,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787619233-12",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "",
+  "timestamp": 1787619233,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=iv_fluids nurse_id=RN_001 timely=true grade=correct delta=0.100000",
+  "elapsed_seconds": 1680,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787619234-13",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "",
+  "timestamp": 1787619234,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=obtain_labs nurse_id=RN_001 timely=true grade=correct delta=0.100000",
+  "elapsed_seconds": 1680,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787619235-14",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "",
+  "timestamp": 1787619235,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id=RN_001 timely=true grade=partially_correct delta=0.020000",
+  "elapsed_seconds": 1680,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787619251-15",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "DKA_CRISIS_001",
+  "timestamp": 1787619251,
+  "event_type": "SESSION_COMPLETE",
+  "event_data": "outcome=COMPLETED nurse_id=RN_001 duration=1920 score=100.000000",
+  "elapsed_seconds": 1920,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787619273-16",
+  "session_id": "DKA_CRISIS_001_1787619119",
+  "scenario_id": "DKA_CRISIS_001",
+  "timestamp": 1787619273,
+  "event_type": "NOTE_DRAFTED",
+  "event_data": "{\"content\":\"=== SIMULATION TRAINING NOTE -- NOT FOR CLINICAL USE ===\\n\\nSITUATION\\nCompleted \\\"Diabetic Ketoacidosis Management\\\" training scenario. Outcome: COMPLETED. Duration: 32m 0s.\\n\\nBACKGROUND\\nSimulated patient, age 32, F. Type 1 DM with DKA.\\nBaseline vitals: HR 113, RR 27, SpO2 94%, BP 96/59, Temp 38.9C.\\n\\nASSESSMENT\\n- Performed Notify Provider at 180s.\\n- Performed Start IV Fluids at 240s.\\n- Performed Start Insulin Infusion at 900s.\\n- Performed Obtain Labs at 1440s.\\n- Missed critical window: failure=cerebral_edema\\n\\nRECOMMENDATION (follow-up learning focus)\\nAll expected interventions for this scenario were performed.\\n\"}",
+  "elapsed_seconds": 1920,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}

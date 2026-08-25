@@ -4,6 +4,7 @@
 #include <cmath>
 #include <iostream>
 #include <algorithm>
+#include <limits>
 
 ClinicalSimulator::ClinicalSimulator() : current_tick(0) {
     std::srand(std::time(nullptr));
@@ -54,9 +55,15 @@ void ClinicalSimulator::initialize(int patient_count) {
             p.temp_history.push_back(p.vitals.temp);
             p.history_timestamps.push_back(init_ts);
         }
-        
+
+        // Seed a single snapshot -- unlike the display-history arrays above,
+        // snapshots don't need to start pre-filled (they're only used to
+        // branch a fork from a past point, not to render an initial chart),
+        // so it just grows naturally from here.
+        p.snapshots.push_back(PatientSnapshot{init_ts, p.vitals, p.physiology, p.active_drugs});
+
         p.nurse_notes = "";
-        
+
         patients.push_back(p);
     }
 }
@@ -104,7 +111,15 @@ void ClinicalSimulator::update_patient_vitals(Patient& p, float dt_seconds) {
     p.temp_history.push_back(p.vitals.temp);
     p.history_timestamps.erase(p.history_timestamps.begin());
     p.history_timestamps.push_back(std::time(nullptr));
-    
+
+    // Full resumable snapshot, ring-buffered to the last 120 ticks -- deeper
+    // than the 20-sample display history since CCPC fork-scrubbing needs
+    // real range to branch from (see include/clinical_sim.h).
+    p.snapshots.push_back(PatientSnapshot{std::time(nullptr), p.vitals, p.physiology, p.active_drugs});
+    if (p.snapshots.size() > 120) {
+        p.snapshots.erase(p.snapshots.begin());
+    }
+
     // Crisis onset: low-probability random trigger per type, same spirit as
     // before (a real patient's crisis doesn't announce itself in advance).
     // The "hybrid" element the plan called for is the Sepsis -> Septic
@@ -201,6 +216,7 @@ int ClinicalSimulator::admit_patient(const std::string& name, const std::string&
         p.temp_history.push_back(p.vitals.temp);
         p.history_timestamps.push_back(admit_ts);
     }
+    p.snapshots.push_back(PatientSnapshot{admit_ts, p.vitals, p.physiology, p.active_drugs});
 
     p.active = true;
     patients.push_back(p);
@@ -222,6 +238,108 @@ bool ClinicalSimulator::administer_drug(int patient_id, DrugType type, float dos
         }
     }
     return false;
+}
+
+std::string ClinicalSimulator::create_fork(int patient_id, std::time_t from_timestamp,
+                                            const std::string& intervention_label,
+                                            bool has_intervention, DrugType intervention_type,
+                                            float intervention_dose, float duration_seconds) {
+    const Patient* patient = nullptr;
+    for (const auto& p : patients) {
+        if (p.id == patient_id) { patient = &p; break; }
+    }
+    if (!patient) return "";
+
+    // Newest snapshot at or before from_timestamp -- snapshots are stored
+    // oldest-first (ring buffer, same as the history arrays), so scan from
+    // the end for the first one that qualifies.
+    const PatientSnapshot* source = nullptr;
+    for (auto it = patient->snapshots.rbegin(); it != patient->snapshots.rend(); ++it) {
+        if (it->timestamp <= from_timestamp) { source = &(*it); break; }
+    }
+    if (!source) return "";
+
+    PatientFork fork;
+    fork.fork_id = "fork_" + std::to_string(next_fork_id++);
+    fork.source_patient_id = patient_id;
+    fork.forked_from_timestamp = source->timestamp;
+    fork.created_at = std::time(nullptr);
+    fork.intervention_label = intervention_label;
+    fork.vitals = source->vitals;
+    fork.physiology = source->physiology;
+    fork.active_drugs = source->active_drugs;
+
+    if (has_intervention) {
+        ActiveDrug drug;
+        drug.type = intervention_type;
+        drug.dose = intervention_dose;
+        drug.remaining_seconds = 1800.0f; // matches handle_action's typical durations
+        fork.active_drugs.push_back(drug);
+        if (intervention_type == DrugType::Oxygen) {
+            fork.vitals.on_oxygen = true;
+        }
+    }
+
+    // Simulate forward -- the exact same three calls update_patient_vitals
+    // makes on the real patient, just against the fork's own cloned state.
+    // No new random crisis triggers (see create_fork's doc comment in the
+    // header for why): the fork only continues whatever crisis state
+    // existed at the source snapshot, plus its own escalation logic.
+    float duration = std::clamp(duration_seconds, 0.0f, 3600.0f);
+    int ticks = static_cast<int>(duration);
+    for (int t = 0; t < ticks; ++t) {
+        apply_crisis_physiology(fork.physiology, fork.vitals.crisis_type, 1.0f);
+        apply_drug_effects(fork.physiology, fork.active_drugs, 1.0f);
+        step_physiology(fork.physiology, fork.vitals, 1.0f);
+
+        if (fork.vitals.crisis_type == "Sepsis" && fork.vitals.bp_sys < 90 &&
+            fork.physiology.infection_burden > 0.6f) {
+            fork.vitals.crisis_type = "Septic Shock";
+        }
+
+        fork.trajectory.push_back(PatientSnapshot{
+            fork.forked_from_timestamp + static_cast<std::time_t>(t + 1),
+            fork.vitals, fork.physiology, fork.active_drugs});
+    }
+
+    // Cap at 10 forks per patient -- evict the oldest by created_at rather
+    // than let this grow unbounded (see the header doc comment: the same
+    // failure mode as HTTPServer::handle_observations, fixed elsewhere this
+    // session).
+    std::vector<std::string> this_patient_forks;
+    for (const auto& [id, f] : forks) {
+        if (f.source_patient_id == patient_id) this_patient_forks.push_back(id);
+    }
+    if (this_patient_forks.size() >= 10) {
+        std::string oldest_id;
+        std::time_t oldest_time = std::numeric_limits<std::time_t>::max();
+        for (const auto& id : this_patient_forks) {
+            std::time_t t = forks.at(id).created_at;
+            if (t < oldest_time) { oldest_time = t; oldest_id = id; }
+        }
+        if (!oldest_id.empty()) forks.erase(oldest_id);
+    }
+
+    std::string fork_id = fork.fork_id;
+    forks[fork_id] = std::move(fork);
+    return fork_id;
+}
+
+const PatientFork* ClinicalSimulator::get_fork(const std::string& fork_id) const {
+    auto it = forks.find(fork_id);
+    return it != forks.end() ? &it->second : nullptr;
+}
+
+std::vector<const PatientFork*> ClinicalSimulator::get_forks_for_patient(int patient_id) const {
+    std::vector<const PatientFork*> result;
+    for (const auto& [id, f] : forks) {
+        if (f.source_patient_id == patient_id) result.push_back(&f);
+    }
+    return result;
+}
+
+bool ClinicalSimulator::delete_fork(const std::string& fork_id) {
+    return forks.erase(fork_id) > 0;
 }
 
 bool ClinicalSimulator::discharge_patient(int patient_id, const std::string& reason) {

@@ -91,6 +91,37 @@ struct ActiveDrug {
     float remaining_seconds = 0.0f;
 };
 
+// A full, resumable snapshot of a patient's simulatable state at one
+// instant -- everything step_physiology/apply_crisis_physiology/
+// apply_drug_effects need to keep going from here, not just the display
+// value the hr_history/etc. arrays capture. This is what a counterfactual
+// fork (see PatientFork below) actually branches from.
+struct PatientSnapshot {
+    std::time_t timestamp;
+    Vitals vitals;
+    InternalPhysiology physiology;
+    std::vector<ActiveDrug> active_drugs;
+};
+
+// A counterfactual branch: "if intervention X had been applied at time T
+// instead of what actually happened, here's how the patient's physiology
+// would have evolved." Stored separately from Patient -- creating or
+// stepping a fork never mutates the real patient's state or history.
+struct PatientFork {
+    std::string fork_id;
+    int source_patient_id;
+    std::time_t forked_from_timestamp;   // which snapshot this branched from
+    std::time_t created_at;
+    std::string intervention_label;       // e.g. "Started norepinephrine", "No action"
+    Vitals vitals;                        // fork's current (end-of-trajectory) state
+    InternalPhysiology physiology;
+    std::vector<ActiveDrug> active_drugs;
+    // Same shape as Patient::snapshots -- one entry per simulated tick this
+    // fork was stepped forward, so the (future) frontend can render a fork
+    // exactly like the real observed-vitals history, just as an overlay.
+    std::vector<PatientSnapshot> trajectory;
+};
+
 // Patient Data Structure
 struct Patient {
     int id;
@@ -111,7 +142,13 @@ struct Patient {
     std::vector<int> spo2_history;
     std::vector<float> temp_history;
     std::vector<std::time_t> history_timestamps;
-    
+
+    // Full resumable state snapshots, one per tick, ring-buffered to the
+    // last 120 (deeper than the 20-sample display history above -- CCPC
+    // scrubbing/forking needs real range to branch from). See
+    // PatientSnapshot.
+    std::vector<PatientSnapshot> snapshots;
+
     // Hidden physiological state driving vitals (see InternalPhysiology
     // above), and any currently-active interventions modifying it.
     InternalPhysiology physiology;
@@ -172,10 +209,43 @@ public:
     // a fixed timer). Returns false if the patient doesn't exist.
     bool administer_drug(int patient_id, DrugType type, float dose, float duration_seconds);
 
+    // Counterfactual forks (CCPC foundation) -- see PatientFork above.
+    //
+    // Clones the patient's newest snapshot at or before from_timestamp,
+    // optionally applies one intervention, and simulates forward for
+    // duration_seconds of *simulated* time (computed synchronously in this
+    // call, 1-second ticks; duration_seconds is clamped to [0, 3600] to
+    // bound the cost of one request). Returns the new fork's id, or "" if
+    // the patient doesn't exist or has no snapshot at/before from_timestamp.
+    //
+    // A fork continues whatever crisis state existed at the source
+    // snapshot (including the existing Sepsis -> Septic Shock escalation)
+    // but does NOT roll new random crisis triggers -- injecting fresh
+    // random bad luck into a projection would defeat the point of isolating
+    // the chosen intervention's effect. That makes a fork's physiology
+    // trajectory deterministic given its inputs, aside from the small
+    // cosmetic measurement noise step_physiology already adds to displayed
+    // vitals.
+    std::string create_fork(int patient_id, std::time_t from_timestamp,
+                             const std::string& intervention_label,
+                             bool has_intervention, DrugType intervention_type,
+                             float intervention_dose, float duration_seconds);
+
+    const PatientFork* get_fork(const std::string& fork_id) const;
+    std::vector<const PatientFork*> get_forks_for_patient(int patient_id) const;
+    bool delete_fork(const std::string& fork_id);
+
 private:
     std::vector<Patient> patients;
     int current_tick;
     int next_patient_id = 1;
+    int next_fork_id = 1;
+
+    // Capped at 10 per patient (oldest evicted first) -- a deliberate
+    // safeguard against unbounded growth, the same failure mode just found
+    // and fixed elsewhere this session (HTTPServer::handle_observations
+    // growing the knowledge graph without bound on every call).
+    std::map<std::string, PatientFork> forks;
 
     // Advances one patient's physiology (see include/ode_physiology.h) by
     // dt_seconds and derives the observable vitals from it.

@@ -45,6 +45,7 @@ include_directories(
 set(WASM_SOURCES
   ../src/kernel/inference_engine.cpp
   ../src/kernel/neural_components.cpp
+  ../src/kernel/bm25_index.cpp
   ../src/kernel/specialization.cpp
   ../src/kernel/rag_dag.cpp
   ../src/kernel/data_loader.cpp
@@ -75,6 +76,7 @@ set(WASM_SOURCES
   # temporal_controls.cpp which aren't part of this target and would fail
   # to link.
   ../src/clinical/clinical_analyzer.cpp
+  ../src/clinical/clinical_scoring.cpp
   ../src/clinical/training_scenario.cpp
   ../src/clinical/training_analytics.cpp
   

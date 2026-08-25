@@ -125,6 +125,31 @@ int duration_minutes_from_timeline(const ScenarioDefinition& def) {
     return max_t + 5; // buffer past the last scripted event
 }
 
+// Maps a dashboard/ClinicalSimulator action string (handle_action's own
+// vocabulary -- deliberately distinct from ScenarioRuntime's action_label
+// map below, a separate system with its own ids) to the DrugType +
+// dose/duration ClinicalSimulator::administer_drug expects. dose/duration
+// are illustrative typical-dose defaults, not calibrated to any real dosing
+// protocol. Shared by handle_action and handle_fork_create so both paths
+// use the exact same intervention definitions, not two copies that could
+// drift apart.
+bool dashboard_action_to_drug(const std::string& action, DrugType& type, float& dose, float& duration_seconds) {
+    if (action == "administer_fluids") {
+        type = DrugType::Crystalloid; dose = 1.0f; duration_seconds = 900.0f;
+    } else if (action == "administer_oxygen") {
+        type = DrugType::Oxygen; dose = 1.0f; duration_seconds = 1800.0f;
+    } else if (action == "start_vasopressor") {
+        type = DrugType::Norepinephrine; dose = 1.0f; duration_seconds = 1800.0f;
+    } else if (action == "administer_antibiotics") {
+        type = DrugType::BroadSpectrumAntibiotic; dose = 1.0f; duration_seconds = 3600.0f;
+    } else if (action == "administer_antipyretic") {
+        type = DrugType::Antipyretic; dose = 1.0f; duration_seconds = 1800.0f;
+    } else {
+        return false;
+    }
+    return true;
+}
+
 // Display labels for the action ids ScenarioRuntime::evaluate_action_correctness
 // (src/clinical/training_scenario.cpp) actually scores. These ids used to only
 // exist there -- ScenarioDefinition::expected_actions (which drives real vitals
@@ -278,6 +303,9 @@ void HTTPServer::register_routes() {
     routes["/api/clinical/scaffold"] = [this](const Request& r) { return handle_scaffold(r); };
     routes["/api/clinical/action"] = [this](const Request& r) { return handle_action(r); };
     routes["/api/clinical/chart"] = [this](const Request& r) { return handle_chart(r); };
+    routes["/api/clinical/fork"] = [this](const Request& r) { return handle_fork(r); };
+    routes["/api/clinical/forks"] = [this](const Request& r) { return handle_forks_list(r); };
+    routes["/api/clinical/fork/delete"] = [this](const Request& r) { return handle_fork_delete(r); };
     routes["/api/auth/sign-in"] = [this](const Request& r) { return handle_sign_in(r); };
     routes["/api/training/start"] = [this](const Request& r) { return handle_training_start(r); };
     routes["/api/training/status"] = [this](const Request& r) { return handle_training_status(r); };
@@ -862,20 +890,35 @@ HTTPServer::Response HTTPServer::handle_patients(const Request& req) {
             if (i > 0) body << ",";
             body << static_cast<long>(p.history_timestamps[i]);
         }
-        body << "]"
-             << ",\"nurse_notes\":\"" << json_escape(p.nurse_notes) << "\"";
+        body << "]";
+
+        // Timestamps only, not full state -- keeps this roster payload
+        // light. Lets a (future) fork UI know what points are available to
+        // branch from before fetching a specific snapshot's full detail via
+        // POST /api/clinical/fork.
+        body << ",\"snapshot_timestamps\":[";
+        for (size_t i = 0; i < p.snapshots.size(); ++i) {
+            if (i > 0) body << ",";
+            body << static_cast<long>(p.snapshots[i].timestamp);
+        }
+        body << "]";
+
+        body << ",\"nurse_notes\":\"" << json_escape(p.nurse_notes) << "\"";
 
         // Standard clinical scores, computed live from current vitals (see
-        // include/clinical_scoring.h). on_vasopressor is always false here --
-        // this simulator has no active-drug tracking yet (Phase 3 territory),
-        // so the cardiovascular sub-score of partial-SOFA is based on MAP
-        // alone until that lands. fio2 approximates 0.4 (nasal cannula) when
-        // on supplemental O2, 0.21 (room air) otherwise -- a simplification,
-        // not a tracked real FiO2 setting.
+        // include/clinical_scoring.h). on_vasopressor reflects real active-drug
+        // state (added this session, src/clinical/ode_physiology.cpp) for the
+        // partial-SOFA cardiovascular sub-score. fio2 approximates 0.4 (nasal
+        // cannula) when on supplemental O2, 0.21 (room air) otherwise -- a
+        // simplification, not a tracked real FiO2 setting.
         NEWS2Result news2 = calculate_news2(p.vitals);
         qSOFAResult qsofa = calculate_qsofa(p.vitals);
         float approx_fio2 = p.vitals.on_oxygen ? 0.4f : 0.21f;
-        PartialSOFAResult psofa = calculate_partial_sofa(p.vitals, approx_fio2, false);
+        bool on_vasopressor = false;
+        for (const auto& drug : p.active_drugs) {
+            if (drug.type == DrugType::Norepinephrine) { on_vasopressor = true; break; }
+        }
+        PartialSOFAResult psofa = calculate_partial_sofa(p.vitals, approx_fio2, on_vasopressor);
         MEWSResult mews = calculate_mews(p.vitals);
 
         body << ",\"news2\":{\"total_score\":" << news2.total_score
@@ -1254,13 +1297,23 @@ HTTPServer::Response HTTPServer::handle_observations(const Request& req) {
         return Response(404, body);
     }
 
-    // Analyze patient and get observations
+    // Analyze patient and get observations. This is a read-only view of
+    // current clinical findings, not a charting action -- it must NOT feed
+    // the learning loop. It used to call learn_from_clinical_observation()
+    // for every returned observation on every single call, which is a
+    // genuine bug: each call permanently adds new knowledge-graph nodes
+    // (observation descriptions embed live vital values, so they're near-
+    // always unique text, defeating add_concept's exact-duplicate check),
+    // making the graph unboundedly larger the more this view is opened --
+    // confirmed live: the graph grew from 64,385 to 129,377 nodes purely
+    // from browsing the vital-history panel (which calls this endpoint on
+    // every tile click) during testing. Every future call then also pays
+    // the cost of re-scanning that ever-larger graph (find_related_concepts
+    // in generate_rationale is O(N) per finding, up to ~15 findings per
+    // call), compounding into the reported 30-second opens. Deliberate
+    // charting actions (HTTPServer::handle_action's nurse-intervention
+    // path) still feed the learning loop -- viewing findings shouldn't.
     auto observations = analyzer->analyze_patient(*patient, engine.get());
-
-    // Train the engine on these observations (ACmK Learning Loop)
-    for (const auto& obs : observations) {
-        engine->learn_from_clinical_observation(obs);
-    }
 
     // Build JSON response. Field names match the frontend's
     // PatientObservation type (web/src/api/types.ts) exactly --
@@ -1613,18 +1666,11 @@ HTTPServer::Response HTTPServer::handle_action(const Request& req) {
     // physiology model (include/ode_physiology.h), not just a logged note --
     // this is the dashboard/ClinicalSimulator flow specifically, separate
     // from ScenarioRuntime's own independent action-effects system used by
-    // scripted TrainingMode scenarios. dose/duration are illustrative
-    // typical-dose defaults, not calibrated to any real dosing protocol.
-    if (action == "administer_fluids") {
-        sim.administer_drug(pid, DrugType::Crystalloid, 1.0f, 900.0f);
-    } else if (action == "administer_oxygen") {
-        sim.administer_drug(pid, DrugType::Oxygen, 1.0f, 1800.0f);
-    } else if (action == "start_vasopressor") {
-        sim.administer_drug(pid, DrugType::Norepinephrine, 1.0f, 1800.0f);
-    } else if (action == "administer_antibiotics") {
-        sim.administer_drug(pid, DrugType::BroadSpectrumAntibiotic, 1.0f, 3600.0f);
-    } else if (action == "administer_antipyretic") {
-        sim.administer_drug(pid, DrugType::Antipyretic, 1.0f, 1800.0f);
+    // scripted TrainingMode scenarios.
+    DrugType drug_type;
+    float dose, duration;
+    if (dashboard_action_to_drug(action, drug_type, dose, duration)) {
+        sim.administer_drug(pid, drug_type, dose, duration);
     }
 
     // Create a synthetic "observation" representing the nurse's intervention
@@ -1741,6 +1787,200 @@ HTTPServer::Response HTTPServer::handle_chart(const Request& req) {
         return Response(200, body.str());
     } catch (const std::exception& e) {
         return Response(400, "{\"error\": \"Failed to record chart entry\"}");
+    }
+}
+
+// CCPC foundation: counterfactual forks. See include/clinical_sim.h's
+// PatientSnapshot/PatientFork and ClinicalSimulator::create_fork for the
+// underlying mechanism -- these handlers are thin JSON wrappers around it.
+HTTPServer::Response HTTPServer::handle_fork(const Request& req) {
+    AuthToken* token = g_auth_manager->get_token(req.auth_token);
+    if (!token) {
+        return Response(401, "{\"error\": \"Unauthorized\"}");
+    }
+
+    if (req.method == "GET") {
+        auto qp = req.query_params.find("fork_id");
+        if (qp == req.query_params.end()) {
+            return Response(400, "{\"error\": \"fork_id query parameter required\"}");
+        }
+        const PatientFork* fork = sim.get_fork(qp->second);
+        if (!fork) {
+            return Response(404, "{\"error\": \"Fork not found\"}");
+        }
+        if (!g_auth_manager->can_view_patient_vitals(token, fork->source_patient_id)) {
+            return Response(403, "{\"error\": \"Forbidden\"}");
+        }
+
+        std::ostringstream body;
+        body << "{\"fork_id\":\"" << json_escape(fork->fork_id) << "\""
+             << ",\"source_patient_id\":" << fork->source_patient_id
+             << ",\"forked_from_timestamp\":" << static_cast<long>(fork->forked_from_timestamp)
+             << ",\"created_at\":" << static_cast<long>(fork->created_at)
+             << ",\"intervention_label\":\"" << json_escape(fork->intervention_label) << "\""
+             << ",\"trajectory\":[";
+        for (size_t i = 0; i < fork->trajectory.size(); ++i) {
+            const auto& s = fork->trajectory[i];
+            if (i > 0) body << ",";
+            body << "{\"timestamp\":" << static_cast<long>(s.timestamp)
+                 << ",\"hr\":" << s.vitals.hr
+                 << ",\"rr\":" << s.vitals.rr
+                 << ",\"spo2\":" << s.vitals.spo2
+                 << ",\"bp_sys\":" << s.vitals.bp_sys
+                 << ",\"bp_dia\":" << s.vitals.bp_dia
+                 << ",\"temp\":" << s.vitals.temp
+                 << ",\"lactate\":" << s.vitals.lactate
+                 << ",\"crisis_type\":\"" << json_escape(s.vitals.crisis_type) << "\"}";
+        }
+        body << "]}";
+        return Response(200, body.str());
+    }
+
+    if (req.method != "POST") {
+        return Response(405, "{\"error\": \"Method not allowed\"}");
+    }
+
+    try {
+        json parsed = json::parse(req.body);
+        int pid = parsed.contains("patient_id") ? static_cast<int>(parsed.at("patient_id").as_double(-1)) : -1;
+        long from_ts = parsed.contains("from_timestamp") ? parsed.at("from_timestamp").as_long(0) : 0;
+        float duration = parsed.contains("duration_seconds")
+                              ? static_cast<float>(parsed.at("duration_seconds").as_double(300.0))
+                              : 300.0f;
+
+        if (pid <= 0 || from_ts <= 0) {
+            return Response(400, "{\"error\": \"patient_id and from_timestamp are required\"}");
+        }
+        if (!g_auth_manager->can_view_patient_vitals(token, pid)) {
+            return Response(403, "{\"error\": \"Forbidden\"}");
+        }
+
+        bool has_intervention = false;
+        DrugType drug_type = DrugType::Crystalloid;
+        float dose = 1.0f;
+        std::string label = "No action";
+
+        if (parsed.contains("intervention") && parsed.at("intervention").is_object()) {
+            const json& iv = parsed.at("intervention");
+            std::string action = iv.contains("type") ? iv.at("type").as_string("") : "";
+            float unused_duration;
+            if (dashboard_action_to_drug(action, drug_type, dose, unused_duration)) {
+                has_intervention = true;
+                if (iv.contains("dose")) dose = static_cast<float>(iv.at("dose").as_double(dose));
+                // Human-readable labels for this handler's own action
+                // vocabulary specifically (dashboard_action_to_drug's) --
+                // deliberately not action_label() above, which is
+                // ScenarioRuntime's unrelated action-id table and would
+                // mostly just echo these ids back unchanged.
+                static const std::map<std::string, std::string> fork_labels = {
+                    {"administer_fluids", "Administered IV fluids"},
+                    {"administer_oxygen", "Administered supplemental oxygen"},
+                    {"start_vasopressor", "Started norepinephrine"},
+                    {"administer_antibiotics", "Administered broad-spectrum antibiotics"},
+                    {"administer_antipyretic", "Administered antipyretic"},
+                };
+                auto label_it = fork_labels.find(action);
+                label = label_it != fork_labels.end() ? label_it->second : action;
+            } else {
+                return Response(400, "{\"error\": \"Unrecognized intervention.type\"}");
+            }
+        }
+
+        std::string fork_id = sim.create_fork(pid, static_cast<std::time_t>(from_ts), label,
+                                               has_intervention, drug_type, dose, duration);
+        if (fork_id.empty()) {
+            return Response(404, "{\"error\": \"Patient not found, or no snapshot at/before from_timestamp\"}");
+        }
+
+        const PatientFork* fork = sim.get_fork(fork_id);
+        std::ostringstream body;
+        body << "{\"fork_id\":\"" << json_escape(fork_id) << "\""
+             << ",\"intervention_label\":\"" << json_escape(label) << "\""
+             << ",\"trajectory\":[";
+        for (size_t i = 0; i < fork->trajectory.size(); ++i) {
+            const auto& s = fork->trajectory[i];
+            if (i > 0) body << ",";
+            body << "{\"timestamp\":" << static_cast<long>(s.timestamp)
+                 << ",\"hr\":" << s.vitals.hr
+                 << ",\"rr\":" << s.vitals.rr
+                 << ",\"spo2\":" << s.vitals.spo2
+                 << ",\"bp_sys\":" << s.vitals.bp_sys
+                 << ",\"bp_dia\":" << s.vitals.bp_dia
+                 << ",\"temp\":" << s.vitals.temp
+                 << ",\"lactate\":" << s.vitals.lactate
+                 << ",\"crisis_type\":\"" << json_escape(s.vitals.crisis_type) << "\"}";
+        }
+        body << "]}";
+        return Response(200, body.str());
+    } catch (const std::exception&) {
+        return Response(400, "{\"error\": \"Invalid request body\"}");
+    }
+}
+
+HTTPServer::Response HTTPServer::handle_forks_list(const Request& req) {
+    AuthToken* token = g_auth_manager->get_token(req.auth_token);
+    if (!token) {
+        return Response(401, "{\"error\": \"Unauthorized\"}");
+    }
+
+    auto qp = req.query_params.find("patient_id");
+    if (qp == req.query_params.end()) {
+        return Response(400, "{\"error\": \"patient_id query parameter required\"}");
+    }
+    int pid;
+    try {
+        pid = std::stoi(qp->second);
+    } catch (...) {
+        return Response(400, "{\"error\": \"Invalid patient_id\"}");
+    }
+    if (!g_auth_manager->can_view_patient_vitals(token, pid)) {
+        return Response(403, "{\"error\": \"Forbidden\"}");
+    }
+
+    auto patient_forks = sim.get_forks_for_patient(pid);
+    std::ostringstream body;
+    body << "{\"patient_id\":" << pid << ",\"forks\":[";
+    for (size_t i = 0; i < patient_forks.size(); ++i) {
+        const PatientFork* f = patient_forks[i];
+        if (i > 0) body << ",";
+        body << "{\"fork_id\":\"" << json_escape(f->fork_id) << "\""
+             << ",\"forked_from_timestamp\":" << static_cast<long>(f->forked_from_timestamp)
+             << ",\"created_at\":" << static_cast<long>(f->created_at)
+             << ",\"intervention_label\":\"" << json_escape(f->intervention_label) << "\""
+             << ",\"trajectory_length\":" << f->trajectory.size() << "}";
+    }
+    body << "]}";
+    return Response(200, body.str());
+}
+
+HTTPServer::Response HTTPServer::handle_fork_delete(const Request& req) {
+    if (req.method != "POST") {
+        return Response(405, "{\"error\": \"Method not allowed\"}");
+    }
+    AuthToken* token = g_auth_manager->get_token(req.auth_token);
+    if (!token) {
+        return Response(401, "{\"error\": \"Unauthorized\"}");
+    }
+
+    try {
+        json parsed = json::parse(req.body);
+        std::string fork_id = parsed.contains("fork_id") ? parsed.at("fork_id").as_string("") : "";
+        if (fork_id.empty()) {
+            return Response(400, "{\"error\": \"fork_id is required\"}");
+        }
+
+        const PatientFork* fork = sim.get_fork(fork_id);
+        if (!fork) {
+            return Response(404, "{\"error\": \"Fork not found\"}");
+        }
+        if (!g_auth_manager->can_view_patient_vitals(token, fork->source_patient_id)) {
+            return Response(403, "{\"error\": \"Forbidden\"}");
+        }
+
+        bool ok = sim.delete_fork(fork_id);
+        return Response(200, ok ? "{\"status\": \"deleted\"}" : "{\"status\": \"not_found\"}");
+    } catch (const std::exception&) {
+        return Response(400, "{\"error\": \"Invalid request body\"}");
     }
 }
 

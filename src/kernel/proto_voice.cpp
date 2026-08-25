@@ -8,7 +8,6 @@ ProtoVoice::ProtoVoice() {
     register_slot_template("identity_query_unknown", "I do not know your name yet.");
     register_slot_template("identity_statement", "I will remember that your name is {name}.");
     register_slot_template("general_query_unknown", "I do not have information about that.");
-    register_slot_template("acknowledgment", "I understand: {fact}.");
 }
 
 void ProtoVoice::register_slot_template(const std::string& slot_name, 
@@ -136,9 +135,24 @@ DecoderOutput ProtoVoice::decode(const DecoderInput& input) {
         }
     } else {
         if (!input.retrieved_facts.empty()) {
-            std::map<std::string, std::string> slots = {{"fact", input.retrieved_facts[0].first}};
-            output.response_text = fill_template(slot_templates["acknowledgment"], slots);
-            output.confidence = input.retrieved_facts[0].second;
+            // Present the retrieved answer directly rather than wrapped in
+            // "I understand: {fact}." -- that template implies the system
+            // parsed the user's own statement back to them, which is the
+            // wrong framing for a Q&A response, and the retrieved text
+            // already reads as a complete answer on its own (it comes from
+            // real training-corpus content via episodic-memory retrieval,
+            // not something generated). Below the retrieval threshold that
+            // filters results at all (0.3, see
+            // retrieve_episodic_memory_by_session), a match is genuinely
+            // weak -- a soft "closest match" qualifier keeps that honest
+            // instead of presenting a shaky match with full confidence.
+            float conf = input.retrieved_facts[0].second;
+            if (conf >= 0.5f) {
+                output.response_text = input.retrieved_facts[0].first;
+            } else {
+                output.response_text = "Closest related information found: " + input.retrieved_facts[0].first;
+            }
+            output.confidence = conf;
             output.provenance.push_back("memory:" + input.retrieved_facts[0].first);
         } else {
             output.response_text = slot_templates["general_query_unknown"];

@@ -301,10 +301,21 @@ function renderDashboard(): void {
       }
     });
     dashboard.mount(app);
+    mountedClinicalDashboard = dashboard;
   }
 
   loadPatients();
 }
+
+// Holds the mounted ClinicalDashboard (rn/charge_nurse/provider role only --
+// the other role branches above don't show a patient grid) so
+// setupAutoRefresh's poll can patch cards in place via updatePatients()
+// instead of re-mounting the whole dashboard every 5s. Cleared implicitly
+// by simply going stale when a different role's dashboard or another route
+// mounts -- setupAutoRefresh only ever calls into it while router.isOn('/dashboard'),
+// and the next renderDashboard() call always reassigns it before anything
+// would read a dangling reference.
+let mountedClinicalDashboard: ClinicalDashboard | null = null;
 
 function renderPatientDetail(): void {
   const state = store.getState();
@@ -625,7 +636,15 @@ function showConnectionError(): void {
 function setupAutoRefresh(): void {
   setInterval(async () => {
     if (router.isOn('/dashboard')) {
-      loadPatients().catch(console.error);
+      // Same staleness gap patient-detail had before updateVitals: this
+      // used to only update the store, with nothing consuming it -- every
+      // number on the mounted dashboard (vitals, score, alerts, gestalt
+      // strip) silently froze at whatever it was on first render.
+      // updatePatients() patches cards in place; a no-op for any other
+      // role's dashboard (see mountedClinicalDashboard's own comment).
+      loadPatients()
+        .then(() => mountedClinicalDashboard?.updatePatients(store.getState().patients))
+        .catch(console.error);
     } else if (router.isOn('/patient') && mountedPatientDetail) {
       // Patient detail used to have no live-refresh path at all -- vitals
       // (and anything read from store.getSelectedPatient() while here, e.g.

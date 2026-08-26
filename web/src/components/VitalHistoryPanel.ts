@@ -2,6 +2,7 @@ import { Component } from './component';
 import type { Patient, ChartEntry, PatientObservation, PatientFork, ForkInterventionType } from '@api/types';
 import type { VitalKey } from './PatientDetail';
 import { apiClient } from '@api/client';
+import { DRIVER_META, NEWS2_PARAM_META } from '@utils/ccpc-visuals';
 
 export interface VitalHistoryPanelConfig {
   vital: VitalKey;
@@ -87,47 +88,12 @@ const PHASE_HR_MIN = 30, PHASE_HR_MAX = 200;
 const PHASE_NORMAL_BP = [90, 140];
 const PHASE_NORMAL_HR = [60, 100];
 
-// Causal attribution band (CCPC layer 1) -- color + label per
-// dominant_physiology_driver id (src/clinical/ode_physiology.cpp).
-// Deliberately a different, more saturated palette than FORK_COLORS/VITALS
-// above so a band segment is never confused with a vital line or a fork
-// overlay. "baseline" is desaturated slate -- a quiet strip meaning
-// nothing hidden is meaningfully off right now.
-const DRIVER_META: Record<string, { label: string; color: string }> = {
-  infection: { label: 'Infection', color: '#dc2626' },
-  hypovolemia: { label: 'Low volume', color: '#ea580c' },
-  vasodilation: { label: 'Vasodilation', color: '#ca8a04' },
-  hypoxia: { label: 'Hypoxia', color: '#0891b2' },
-  low_contractility: { label: 'Low contractility', color: '#7c3aed' },
-  vasopressor: { label: 'Vasopressor', color: '#db2777' },
-  fluid_resuscitation: { label: 'Fluid resuscitation', color: '#0d9488' },
-  antipyretic: { label: 'Antipyretic', color: '#4f46e5' },
-  baseline: { label: 'Near baseline', color: '#475569' }
-};
-
 const SCORE_RIBBON_HEIGHT = 28;
 // NEWS2 totals at/above this render at full ribbon height -- 20 is the
 // real theoretical max, but this simulator's tuned physiology rarely
 // pushes a single snapshot past single digits, so scaling to the full
 // theoretical range would make almost every bar look tiny.
 const SCORE_RIBBON_MAX = 10;
-
-// Colors deliberately reuse a tracked vital's own line color where a
-// direct one exists (heart_rate/spo2/respiration/temperature), so "this
-// ribbon segment is cyan" reads as "heart rate" the same way it does in
-// the chart above it. The three NEWS2 parameters with no vitals-chart
-// line of their own (systolic BP, supplemental O2, consciousness) get new
-// colors not used anywhere else in this file.
-const NEWS2_PARAM_META: Record<string, { label: string; color: string }> = {
-  heart_rate: { label: 'Heart rate', color: '#22d3ee' },
-  spo2: { label: 'Oxygen saturation', color: '#60a5fa' },
-  respiration: { label: 'Respiratory rate', color: '#a78bfa' },
-  temperature: { label: 'Temperature', color: '#fbbf24' },
-  systolic: { label: 'Systolic BP', color: '#f97316' },
-  oxygen: { label: 'Supplemental O2', color: '#14b8a6' },
-  consciousness: { label: 'Consciousness', color: '#e879f9' },
-  none: { label: 'No points scored', color: '#475569' }
-};
 
 interface ActiveFork extends PatientFork {
   color: string;

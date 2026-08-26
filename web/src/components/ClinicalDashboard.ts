@@ -3,6 +3,7 @@ import type { Patient, Role, RoleCapabilities, TrainingScenario } from '@api/typ
 import { getWasmBridge } from '@api/wasm-bridge';
 import { apiClient } from '@api/client';
 import { showToast } from '@utils/ui-helpers';
+import { NEWS2_PARAM_META, news2Trend, TREND_META } from '@utils/ccpc-visuals';
 import { Modal, type ModalConfig } from './Modal';
 
 export interface ClinicalDashboardConfig {
@@ -294,7 +295,7 @@ export class ClinicalDashboard extends Component {
                 <span>${patient.mrn}</span>
               </div>
             </div>
-            <div class="px-2 py-1 rounded text-xs font-semibold border ${statusBg} ${statusColor}">
+            <div class="score-badge px-2 py-1 rounded text-xs font-semibold border ${statusBg} ${statusColor}">
               Score: ${patient.acuity_score}
             </div>
           </div>
@@ -302,21 +303,23 @@ export class ClinicalDashboard extends Component {
           <div class="grid grid-cols-4 gap-2 mb-3">
             <div class="bg-slate-900/50 p-2 rounded-lg border border-slate-800 flex flex-col items-center justify-center">
               <div class="text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-1">HR</div>
-              <div class="font-bold text-sm ${patient.vitals.hr > 100 ? 'text-red-400' : 'text-slate-200'}">${patient.vitals.hr}</div>
+              <div class="vital-value-hr font-bold text-sm ${patient.vitals.hr > 100 ? 'text-red-400' : 'text-slate-200'}">${patient.vitals.hr}</div>
             </div>
             <div class="bg-slate-900/50 p-2 rounded-lg border border-slate-800 flex flex-col items-center justify-center">
               <div class="text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-1">SpO2</div>
-              <div class="font-bold text-sm ${patient.vitals.spo2 < 95 ? 'text-red-400' : 'text-cyan-400'}">${patient.vitals.spo2}%</div>
+              <div class="vital-value-spo2 font-bold text-sm ${patient.vitals.spo2 < 95 ? 'text-red-400' : 'text-cyan-400'}">${patient.vitals.spo2}%</div>
             </div>
             <div class="bg-slate-900/50 p-2 rounded-lg border border-slate-800 flex flex-col items-center justify-center">
               <div class="text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-1">RR</div>
-              <div class="font-bold text-sm text-slate-200">${patient.vitals.rr}</div>
+              <div class="vital-value-rr font-bold text-sm text-slate-200">${patient.vitals.rr}</div>
             </div>
             <div class="bg-slate-900/50 p-2 rounded-lg border border-slate-800 flex flex-col items-center justify-center">
               <div class="text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-1">BP</div>
-              <div class="font-bold text-[11px] text-slate-300">${patient.vitals.bp_sys}/${patient.vitals.bp_dia}</div>
+              <div class="vital-value-bp font-bold text-[11px] text-slate-300">${patient.vitals.bp_sys}/${patient.vitals.bp_dia}</div>
             </div>
           </div>
+
+          ${this.renderGestaltStrip(patient)}
 
           <div class="flex items-center justify-between gap-2">
             <div class="text-xs text-cyan-400/80 group-hover:text-cyan-300 transition-colors">
@@ -340,6 +343,117 @@ export class ClinicalDashboard extends Component {
         </div>
       `;
     }).join('');
+  }
+
+  // Multi-patient "gestalt" strip (CCPC): the per-patient panel already has
+  // rich per-vital detail (attribution band, score ribbon, phase portrait);
+  // this is the complementary cross-patient view -- a charge nurse scanning
+  // the whole unit needs "who's trending the wrong way" at a glance, not a
+  // grid of instantaneous numbers that all look equally static next to each
+  // other. Reuses snapshot_news2_total/_dominant, already fetched on every
+  // Patient object -- no separate request, no new backend surface.
+  // Fixed sparkline scale (not auto-scaled per patient) so severity is
+  // comparable *across* cards, the same reasoning as the phase portrait's
+  // fixed axes in VitalHistoryPanel.
+  private renderGestaltStrip(patient: Patient): string {
+    const totals = patient.snapshot_news2_total;
+    const dominants = patient.snapshot_news2_dominant;
+    if (!totals || totals.length === 0) return '';
+
+    const trend = news2Trend(totals);
+    const trendMeta = TREND_META[trend];
+
+    const SPARK_W = 88, SPARK_H = 20, SPARK_MAX = 10;
+    const recent = totals.slice(-20);
+    const points = recent.map((v, i) => {
+      const x = recent.length > 1 ? (i / (recent.length - 1)) * SPARK_W : SPARK_W;
+      const y = SPARK_H - (Math.min(v, SPARK_MAX) / SPARK_MAX) * SPARK_H;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+
+    const lastDominant = dominants && dominants.length > 0 ? dominants[dominants.length - 1] : 'none';
+    const dotMeta = NEWS2_PARAM_META[lastDominant] || NEWS2_PARAM_META.none;
+
+    return `
+      <div class="gestalt-strip flex items-center gap-2 mb-3 px-2.5 py-1.5 bg-slate-900/30 rounded-lg border border-slate-800/50" title="NEWS2 trend over recent snapshots -- ${this.escapeAttr(dotMeta.label)} is the current top contributor">
+        <svg viewBox="0 0 ${SPARK_W} ${SPARK_H}" class="flex-shrink-0" style="width:${SPARK_W}px;height:${SPARK_H}px">
+          <polyline points="${points}" fill="none" stroke="${dotMeta.color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.9" />
+        </svg>
+        <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:${dotMeta.color}"></span>
+        <span class="text-[11px] font-bold ${trendMeta.color}">${trendMeta.arrow}</span>
+        <span class="text-[9px] text-slate-500 leading-tight">${trendMeta.label}</span>
+      </div>
+    `;
+  }
+
+  // Patches card contents in place from a fresh patient list instead of
+  // re-mounting the whole dashboard -- setupAutoRefresh (main-refactored.ts)
+  // polls the server every 5s while on /dashboard, but until now that only
+  // ever updated the store; nothing consumed the fresh data, so every
+  // number on this screen (vitals, score, alerts, and now the gestalt
+  // strip) silently froze at whatever it was when the dashboard first
+  // mounted. Same targeted-patch discipline as PatientDetail.updateVitals
+  // and TrainingMode.updateLiveData -- outerHTML-replacing a whole
+  // .patient-card would drop its click handler (Component.on binds
+  // directly to elements, not via delegation), so only listener-free
+  // sub-pieces (vitals text, the gestalt strip, the alerts panel -- which
+  // already has its own attachAlertListeners() rebind step) get replaced;
+  // the card and its className are patched, never recreated.
+  updatePatients(patients: Patient[]): void {
+    this.config.patients = patients;
+    this.alerts = this.deriveAlerts(patients);
+    if (!this.element) return;
+
+    const panel = this.element.querySelector('#alerts-panel');
+    if (panel) {
+      panel.innerHTML = this.renderAlertsPanel();
+      this.attachAlertListeners();
+    }
+
+    for (const patient of patients) {
+      const card = this.element.querySelector<HTMLElement>(`.patient-card[data-patient-id="${patient.id}"]`);
+      if (!card) continue;
+
+      const isCritical = patient.acuity_score >= 7;
+      const isWarning = patient.acuity_score >= 4 && patient.acuity_score < 7;
+      let statusColor = 'text-green-400';
+      let statusBg = 'bg-green-400/10 border-green-400/20';
+      let pulseEffect = '';
+      if (isCritical) {
+        statusColor = 'text-red-400';
+        statusBg = 'bg-red-400/10 border-red-400/30';
+        pulseEffect = 'animate-pulse-slow shadow-lg shadow-red-500/10 border-red-500/50';
+      } else if (isWarning) {
+        statusColor = 'text-amber-400';
+        statusBg = 'bg-amber-400/10 border-amber-400/30';
+      }
+      card.className = `glass-card p-5 cursor-pointer group patient-card ${pulseEffect}`;
+
+      const badge = card.querySelector<HTMLElement>('.score-badge');
+      if (badge) {
+        badge.className = `score-badge px-2 py-1 rounded text-xs font-semibold border ${statusBg} ${statusColor}`;
+        badge.textContent = `Score: ${patient.acuity_score}`;
+      }
+
+      const hrEl = card.querySelector<HTMLElement>('.vital-value-hr');
+      if (hrEl) {
+        hrEl.textContent = String(patient.vitals.hr);
+        hrEl.className = `vital-value-hr font-bold text-sm ${patient.vitals.hr > 100 ? 'text-red-400' : 'text-slate-200'}`;
+      }
+      const spo2El = card.querySelector<HTMLElement>('.vital-value-spo2');
+      if (spo2El) {
+        spo2El.textContent = `${patient.vitals.spo2}%`;
+        spo2El.className = `vital-value-spo2 font-bold text-sm ${patient.vitals.spo2 < 95 ? 'text-red-400' : 'text-cyan-400'}`;
+      }
+      const rrEl = card.querySelector<HTMLElement>('.vital-value-rr');
+      if (rrEl) rrEl.textContent = String(patient.vitals.rr);
+      const bpEl = card.querySelector<HTMLElement>('.vital-value-bp');
+      if (bpEl) bpEl.textContent = `${patient.vitals.bp_sys}/${patient.vitals.bp_dia}`;
+
+      const stripEl = card.querySelector('.gestalt-strip');
+      const freshStrip = this.renderGestaltStrip(patient);
+      if (stripEl && freshStrip) stripEl.outerHTML = freshStrip;
+    }
   }
 
   private renderTrainingPanel(): string {

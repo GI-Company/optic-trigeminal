@@ -228,15 +228,27 @@ unsigned int OpticEmbedder::hash_word(const std::string& word) const {
 
 Embedding OpticEmbedder::embed(const std::string& text) {
     VectorF input(768, 0.0f);
-    
-    std::istringstream stream(text);
-    std::string word;
-    while (stream >> word) {
-        unsigned int hash_val = hash_word(word);
-        size_t index = hash_val % input.size(); // Map hash to an index in the input vector
-        input[index] += 1.0f; // Increment count for word presence (simple bag-of-words)
+
+    // Tokenize the same way BM25Index does (lowercase, alphanumeric spans)
+    // instead of a raw whitespace split on the literal text -- this used to
+    // hash "Sepsis", "sepsis", and "sepsis." to three different buckets,
+    // fragmenting one semantic word's signal across the input vector for
+    // no reason other than capitalization or an adjacent period. Measured
+    // effect on the raw bag-of-words vector's cosine similarity between
+    // near-duplicate real-world text pairs (same content, different
+    // capitalization/punctuation): 0.36-0.67 before this change, 0.91-1.00
+    // after -- see the fix commit for the probe. Doesn't touch W1/W2/
+    // layer_norm below at all, just what gets counted into the input this
+    // network already receives; BM25Index::tokenize_and_count is already
+    // the trusted, well-tested tokenizer this codebase relies on for
+    // lexical search (see bm25_index.h), reused here rather than
+    // duplicated.
+    for (const auto& [term, count] : BM25Index::tokenize_and_count(text)) {
+        unsigned int hash_val = hash_word(term);
+        size_t index = hash_val % input.size();
+        input[index] += static_cast<float>(count);
     }
-    
+
     // Normalize input to prevent large values from dominating
     float sum_input = 0.0f;
     for (float v : input) sum_input += v;
@@ -296,13 +308,16 @@ void OpticEmbedder::update_from_feedback(const std::string& text, const Embeddin
     // layers; layer_norm's own gradient is treated as approximately
     // identity here, a standard simplification for a lightweight online
     // update rather than a full batched trainer).
+    // Must tokenize identically to embed() above (see its own comment) --
+    // this duplicated embed()'s *old* whitespace-split logic inline rather
+    // than calling into shared tokenization, which would have quietly
+    // reintroduced the exact train/inference distribution mismatch this
+    // function's own header comment describes fixing once already.
     VectorF input(768, 0.0f);
-    std::istringstream stream(text);
-    std::string word;
-    while (stream >> word) {
-        unsigned int hash_val = hash_word(word);
+    for (const auto& [term, count] : BM25Index::tokenize_and_count(text)) {
+        unsigned int hash_val = hash_word(term);
         size_t index = hash_val % input.size();
-        input[index] += 1.0f;
+        input[index] += static_cast<float>(count);
     }
     float sum_input = 0.0f;
     for (float v : input) sum_input += v;

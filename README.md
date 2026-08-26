@@ -69,6 +69,26 @@ rosters:
 ./build.sh
 ```
 
+### Verifying a change
+
+`./build.sh` only builds the native server + CLI + tests. There's a
+**separate, independent** WASM build (`wasm/build.sh`, needs Emscripten) that
+backs the in-browser "Edge Diagnostics" inference demo -- `build.sh`
+succeeding is not a guarantee the WASM side still compiles or is in sync
+with what's actually running in `web/public/optic-trigeminal.wasm`, and this
+project's history has more than once shipped native changes with a stale
+WASM build nobody re-ran by hand.
+
+```bash
+./scripts/verify_all.sh
+```
+
+runs the native build, the physiology fuzz test, the integration test
+suite, the WASM build (skipped with a warning if Emscripten isn't
+installed), and syncs the fresh WASM into `web/public/` + re-embeds it into
+the server binary if anything changed. Run this, not just `./build.sh`,
+before considering a change to `src/` or `include/` done.
+
 ## Running
 
 If you want to use the Groq API integration, you must provide your API key. You can do this by setting an environment variable or creating a `.groq_api_key` file in the root directory:

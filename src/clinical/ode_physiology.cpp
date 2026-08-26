@@ -75,6 +75,20 @@ float noise(float span) {
     return ((static_cast<float>(rand() % 1000) / 1000.0f) - 0.5f) * span;
 }
 
+// static_cast<int> on a NaN or Inf float is undefined behavior (caught by
+// UBSan under the physiology fuzz test's deliberately-injected bad inputs)
+// -- std::clamp doesn't reliably sanitize NaN first (comparisons against
+// NaN are always false, so clamp can pass a NaN straight through), and
+// apply_hard_limits below only runs at the very end of step_physiology,
+// after these casts already happened. Every float->int vital conversion in
+// this file goes through this instead of a bare static_cast<int> so the
+// eventual apply_hard_limits fallback is reached safely rather than via UB
+// along the way.
+int safe_round_to_int(float x, int fallback) {
+    if (std::isnan(x) || std::isinf(x)) return fallback;
+    return static_cast<int>(std::round(x));
+}
+
 } // namespace
 
 void step_physiology(InternalPhysiology& phys, Vitals& v, float dt_seconds) {
@@ -115,14 +129,14 @@ void step_physiology(InternalPhysiology& phys, Vitals& v, float dt_seconds) {
     // noise so it still feels "alive" the way the old random walk did --
     // every value is now a consequence of the shared underlying state,
     // not independently randomized per-vital.
-    v.bp_sys = static_cast<int>(std::round(phys.arterial_pressure + noise(3.0f)));
-    v.bp_dia = static_cast<int>(std::round(phys.arterial_pressure * 0.65f + noise(3.0f)));
-    v.hr = static_cast<int>(std::round(heart_rate_from_state(phys) + noise(2.0f)));
-    v.spo2 = static_cast<int>(std::round(std::clamp(
-        98.0f * phys.oxygenation_efficiency - phys.shunt_fraction * 15.0f + noise(1.0f), 50.0f, 100.0f)));
-    v.rr = static_cast<int>(std::round(std::clamp(
+    v.bp_sys = safe_round_to_int(phys.arterial_pressure + noise(3.0f), 120);
+    v.bp_dia = safe_round_to_int(phys.arterial_pressure * 0.65f + noise(3.0f), 78);
+    v.hr = safe_round_to_int(heart_rate_from_state(phys) + noise(2.0f), 75);
+    v.spo2 = safe_round_to_int(std::clamp(
+        98.0f * phys.oxygenation_efficiency - phys.shunt_fraction * 15.0f + noise(1.0f), 50.0f, 100.0f), 98);
+    v.rr = safe_round_to_int(std::clamp(
         16.0f + (1.0f - phys.oxygenation_efficiency) * 26.0f + phys.infection_burden * 6.0f + noise(1.0f),
-        6.0f, 45.0f)));
+        6.0f, 45.0f), 16);
 
     // Temperature changes are physiologically slow -- eases toward a
     // target instead of jumping, unlike the other vitals above.
@@ -131,8 +145,8 @@ void step_physiology(InternalPhysiology& phys, Vitals& v, float dt_seconds) {
     v.temp += (target_temp - v.temp) * std::clamp(0.01f * dt_seconds, 0.0f, 1.0f);
 
     v.lactate = std::clamp(1.0f + phys.oxygen_debt * 0.35f, 0.3f, 20.0f);
-    v.urine_output_ml_hr = static_cast<int>(std::clamp(
-        (phys.arterial_pressure - 60.0f) * 0.9f - phys.infection_burden * 20.0f, 0.0f, 130.0f));
+    v.urine_output_ml_hr = safe_round_to_int(std::clamp(
+        (phys.arterial_pressure - 60.0f) * 0.9f - phys.infection_burden * 20.0f, 0.0f, 130.0f), 50);
 
     apply_hard_limits(phys, v);
 }

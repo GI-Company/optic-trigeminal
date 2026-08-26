@@ -2,19 +2,76 @@
 #include <cmath>
 #include <cctype>
 #include <algorithm>
+#include <unordered_map>
+
+namespace {
+
+// Canonicalizes a handful of clinical adjective/noun word-form pairs to one
+// shared term (e.g. "septic" and "sepsis" both index/query as "sepsis") so
+// BM25 term-overlap matching -- which is exact-string, no stemming --
+// doesn't miss a document just because it used a different word form than
+// the query. Applied uniformly to both indexing and querying (both go
+// through this same function), and to OpticEmbedder's bag-of-words input
+// too (see neural_components.cpp's embed(), which calls this directly) --
+// one canonicalization point, so index/query/embedding all agree.
+//
+// Deliberately small and hand-picked, not a general stemmer: every pair
+// here is the same clinical concept in a different grammatical form, not
+// an inferred or approximate relationship, and each entry is a real,
+// measured gap (medical_o1_and_wiki.jsonl alone has ~110 "septic"-only and
+// ~140 "sepsis"-only training examples that would otherwise not cross-match).
+//
+// Deliberately EXCLUDES negated/antonym forms that a naive stemmer would
+// wrongly conflate with their root -- "afebrile" (without fever) must
+// never canonicalize to "fever", and "normotensive"/"normoxic" (normal BP /
+// normal oxygenation) must never canonicalize to "hypotension"/"hypoxia".
+// Getting one of those wrong would silently invert a query's meaning, not
+// just miss a match, which is exactly the kind of correctness risk a
+// hand-picked list is meant to avoid versus algorithmic stemming.
+//
+// This only affects which documents a lexical/embedding search can find --
+// it never rewrites or fabricates the actual retrieved text.
+const std::unordered_map<std::string, std::string>& clinical_term_canon() {
+    static const std::unordered_map<std::string, std::string> table = {
+        {"septic", "sepsis"},
+        {"hypoxic", "hypoxia"},
+        {"hypoxemic", "hypoxia"},
+        {"hypoxemia", "hypoxia"},
+        {"tachycardic", "tachycardia"},
+        {"bradycardic", "bradycardia"},
+        {"hypotensive", "hypotension"},
+        {"hypertensive", "hypertension"},
+        {"tachypneic", "tachypnea"},
+        {"tachypnoeic", "tachypnea"},
+        {"febrile", "fever"},
+        {"pyrexia", "fever"},
+        {"pyrexial", "fever"},
+    };
+    return table;
+}
+
+} // namespace
 
 std::map<std::string, int> BM25Index::tokenize_and_count(const std::string& text) {
     std::map<std::string, int> counts;
+    const auto& canon = clinical_term_canon();
+
+    auto emit = [&](std::string& word) {
+        if (word.empty()) return;
+        auto it = canon.find(word);
+        counts[it != canon.end() ? it->second : word]++;
+        word.clear();
+    };
+
     std::string word;
     for (unsigned char c : text) {
         if (std::isalnum(c)) {
             word += static_cast<char>(std::tolower(c));
-        } else if (!word.empty()) {
-            counts[word]++;
-            word.clear();
+        } else {
+            emit(word);
         }
     }
-    if (!word.empty()) counts[word]++;
+    emit(word);
     return counts;
 }
 

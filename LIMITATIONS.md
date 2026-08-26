@@ -21,13 +21,84 @@ the codebase changes, rather than left to drift from the README's marketing lang
 
 ## AI / Reasoning
 
-- Embeddings are 256-dimensional, built from bag-of-words hashing (no real tokenizer,
-  no subword units, no attention). This is a genuine constraint on semantic retrieval
-  quality — real term overlap (via BM25) is what carries most of the retrieval signal
-  today, not the neural embedding.
+- Embeddings are 256-dimensional, built from bag-of-words hashing over a random linear
+  projection (no subword units, no attention, no trained semantic model). This is a
+  genuine constraint on semantic retrieval quality — real term overlap (via BM25) is
+  what carries most of the retrieval signal today, not the neural embedding.
+- **As of 2026-08-25**, `OpticEmbedder::embed()` and `update_from_feedback()` tokenize
+  the same way `BM25Index` does (lowercase, alphanumeric spans) instead of a raw
+  whitespace split on the literal text -- the old tokenization hashed "Sepsis",
+  "sepsis", and "sepsis." to three different input-vector buckets, fragmenting one
+  semantic word's signal purely from capitalization or adjacent punctuation. Measured
+  effect on real near-duplicate text pairs: cosine similarity of the resulting
+  embeddings went from 0.36-0.67 to 0.91-1.00. This fixes a real signal-quality bug in
+  the *input representation*, not the deeper limitation above -- there's still no
+  general stemming or stop-word handling, and the embedding is still an untrained random
+  projection, not a semantic model.
+- `BM25Index::tokenize_and_count` (shared by BM25 search and, since the above, the
+  embedding path too) also canonicalizes a small, hand-picked set of clinical
+  adjective/noun word-form pairs to one shared term -- "septic"/"sepsis",
+  "hypoxic"/"hypoxemic"/"hypoxemia"/"hypoxia", "tachycardic"/"tachycardia",
+  "hypotensive"/"hypotension", "febrile"/"pyrexia"/"fever", etc. (see the table in
+  `bm25_index.cpp`). This is deliberately a short, verified list, not algorithmic
+  stemming: each pair is the same concept in a different grammatical form, confirmed
+  against real training-corpus content (`medical_o1_and_wiki.jsonl` alone has ~110
+  "septic"-only and ~140 "sepsis"-only examples that couldn't cross-match before this),
+  and negated/antonym forms ("afebrile", "normotensive", "normoxic") are explicitly
+  excluded and tested against to make sure they never get merged with their root -- that
+  would silently invert a query's meaning, not just miss a match. Only affects which
+  documents a search can *find*; never changes the retrieved text itself.
 - The neural components' "training" paths are simplified online updates, not full
   batch training with a validation loop. Weights are close to their random
   initialization for most components.
+- **Kernel "planes"/orchestrators, audited 2026-08-26** -- `src/kernel/` has a set of
+  agentic-sounding files (`long_horizon_planner`, `cognitive_load_balancer`,
+  `meta_debugger`, `agent_orchestrator`, `recovery_manager`, `telemetry_collector`,
+  `policy_engine`, `decoder_compliance_gate`) whose names imply more than a line-by-line
+  read confirms. Findings, evidence-based (call-site grep, not guesswork):
+  - `recovery_manager.cpp` and `telemetry_collector.cpp` are **entirely dead code** --
+    zero callers anywhere outside their own file. `telemetry_collector.cpp` is also
+    worth flagging even though it's unreachable: several of its "metrics" (CPU/memory
+    usage, per-component health scores) are generated with `rand()` and presented with
+    plausible-looking precision, not measured. If either file is ever wired up later,
+    that needs fixing first -- don't assume it reports anything real just because it
+    compiles and has a real-looking API.
+  - `main.cpp` constructs a second, parallel `PolicyEngine` / `AgentOrchestrator` /
+    `MetaDebugger` / `CognitiveLoadBalancer` / `LongHorizonPlanner` stack that only the
+    debug server (port 6969) reads from -- it's disconnected from the real inference
+    path (`inference_engine.cpp`'s own comment confirms which components it actually
+    uses). `CognitiveLoadBalancer::measure_system_load()` does real aggregation math,
+    but its inputs (`ProcessContext::allocate_resource`/`release_resource`) are never
+    called by real traffic, so that debug endpoint permanently reports 0%/IDLE
+    regardless of actual server load.
+  - `PolicyEngine::decide()` (the one method with real test coverage, in
+    `tests/acmk_integration_test.cpp`) doesn't consult the rule table `add_rule()`
+    populates -- it duplicates the default thresholds as hardcoded literals instead, so
+    a caller adding a custom rule via `add_rule()` sees zero effect on `decide()`.
+    Separately, `evaluate()`'s condition matcher checks for the substring "confidence"/
+    "intent" rather than actually comparing values -- latent, since `evaluate()` itself
+    has no live caller today.
+  - `decoder_compliance_gate.h` is never instantiated anywhere (the `.cpp` is a
+    1-line stub) -- `decoder_contract.h` is the abstraction actually in use;
+    `decoder_compliance_gate` looks like a superseded duplicate left behind.
+  - By contrast, `acmk_planes.cpp`/`state_plane.cpp` (`ACMKPlanesCoordinator` and the
+    state/trace/control/environment planes) turned out to be genuinely real, live,
+    request-path code -- `http_server.cpp` wires ~20 real HTTP routes through it,
+    including a real SHA-256 hash-chained audit log. It had zero test coverage before
+    this audit; `tests/acmk_planes_test.cpp` (added 2026-08-26) now covers it,
+    including regression tests for two bug classes the header comments document already
+    being fixed once (session-scoping that was actually a substring match; a trace
+    store keyed by node_id instead of session_id). Writing those tests also found and
+    fixed a real one: `DefaultTracePlane::create_snapshot`'s id was
+    `session_id + "_" + to_time_t(timestamp)` alone, which collides for two snapshots
+    of the same session created within the same second (`to_time_t` is second-grain).
+    Harmless today (`replay_frame` is a no-op stub, nothing looks a snapshot up by id
+    yet), but fixed anyway with a monotonic counter suffix since "id" implies
+    uniqueness and a future real `replay_frame` would otherwise silently replay the
+    wrong one of two colliding snapshots.
+  - None of this was individually named in this file before 2026-08-26, even though
+    the general "no regression coverage" line above already existed -- these are the
+    specific, actionable version of that claim.
 
 ## Clinical Simulator
 
@@ -94,6 +165,26 @@ the codebase changes, rather than left to drift from the README's marketing lang
 
 ## Operational
 
-- No continuous integration, static analysis, or sanitizer configuration exists yet.
+- No continuous integration exists yet -- `scripts/verify_all.sh` (added 2026-08-25) is a
+  local stand-in: it runs the native build, the physiology fuzz test, the
+  clinical-scoring golden tests, the BM25 index golden tests, an ASan+UBSan sanitizer
+  build of all three test targets, the integration suite, and the WASM build (syncing
+  `web/public/optic-trigeminal.wasm` forward if it's stale) -- but nothing enforces
+  running it before a change ships, the way real CI would, and the sanitizer coverage is
+  limited to those three fast test targets, not the whole codebase. It already found one
+  real bug: `static_cast<int>` on a NaN float in `ode_physiology.cpp`'s vitals mapping is
+  undefined behavior that 20,000 plain fuzz-test iterations passed every time (the final
+  clamped output looked fine regardless) -- fixed via `safe_round_to_int`.
+- Test coverage is still thin relative to the codebase's surface area: the physiology
+  engine has a fuzz test, NEWS2/qSOFA/partial-SOFA/MEWS have golden boundary tests
+  (`tests/clinical_scoring_test.cpp`), BM25 (the retrieval system's real, trusted lexical
+  signal -- see `include/bm25_index.h`) has its own golden tests
+  (`tests/bm25_index_test.cpp`), `ACMKPlanesCoordinator`/the state/trace/control/
+  environment planes (real, live, request-path code -- see "Kernel planes/orchestrators"
+  under AI/Reasoning above) has its own (`tests/acmk_planes_test.cpp`), and there's a
+  general integration suite -- but most of the AI kernel (the neural embedding path
+  beyond its tokenization, most of the other "planes"/orchestrator files -- several of
+  which turned out to be dead code, see above) has no regression coverage at all, and
+  wouldn't need any to stay fully honest, since they're unreachable.
 - Build system uses `file(GLOB_RECURSE ...)` in places, which is convenient for
   development but not fully reproducible-build-safe.

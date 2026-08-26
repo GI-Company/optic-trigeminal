@@ -204,3 +204,39 @@ clang++ -std=c++17 -O2 -I../include \
 
 echo "Physiology fuzz test build complete!"
 echo "Test Binary: ./build/physiology_fuzz_test"
+
+echo ""
+echo "Building clinical scoring golden tests..."
+clang++ -std=c++17 -O2 -I../include \
+    ../tests/clinical_scoring_test.cpp \
+    ../src/clinical/clinical_scoring.cpp \
+    -o clinical_scoring_test
+
+echo "Clinical scoring golden tests build complete!"
+echo "Test Binary: ./build/clinical_scoring_test"
+
+echo ""
+echo "Building BM25 index golden tests..."
+clang++ -std=c++17 -O2 -I../include \
+    ../tests/bm25_index_test.cpp \
+    ../src/kernel/bm25_index.cpp \
+    -o bm25_index_test
+
+echo "BM25 index golden tests build complete!"
+echo "Test Binary: ./build/bm25_index_test"
+
+echo ""
+echo "Building ACMK planes golden tests..."
+clang++ -std=c++17 -O2 -I../include $ARGON2_INC \
+    ../tests/acmk_planes_test.cpp \
+    ../src/kernel/acmk_planes.cpp \
+    ../src/kernel/state_plane.cpp \
+    ../src/kernel/simulation_enforcement.cpp \
+    ../src/kernel/temporal_controls.cpp \
+    ../src/kernel/crypto_utils.cpp \
+    $ARGON2_OBJS \
+    -pthread \
+    -o acmk_planes_test
+
+echo "ACMK planes golden tests build complete!"
+echo "Test Binary: ./build/acmk_planes_test"

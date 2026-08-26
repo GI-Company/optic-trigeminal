@@ -86,6 +86,16 @@ private:
   std::map<std::string, DecisionEnvelope> decision_envelopes;
   std::map<std::string, std::vector<TemporalSnapshot>> snapshots;
   std::mutex trace_mutex;
+  // create_snapshot's id used to be session_id + "_" + to_time_t(timestamp)
+  // alone -- to_time_t truncates to whole seconds, so two snapshots for the
+  // same session created within the same second collided on id (found by
+  // tests/acmk_planes_test.cpp). Harmless today (nothing looks a snapshot
+  // up by id yet -- replay_frame is a no-op stub, get_snapshots returns
+  // every snapshot for a session regardless of id), but "id" implies
+  // uniqueness and a future real replay_frame implementation would silently
+  // replay the wrong one of two colliding snapshots. A monotonic counter
+  // suffix guarantees uniqueness regardless of clock resolution.
+  uint64_t snapshot_seq = 0;
 
 public:
   void record_frame(const std::string& session_id, const InferenceNode& node) override {
@@ -137,7 +147,7 @@ public:
     snapshot.timestamp = timestamp;
     snapshot.state_hash = state_hash;
     snapshot.snapshot_id = session_id + "_" + std::to_string(
-      std::chrono::system_clock::to_time_t(timestamp));
+      std::chrono::system_clock::to_time_t(timestamp)) + "_" + std::to_string(snapshot_seq++);
 
     snapshots[session_id].push_back(snapshot);
     return snapshot.snapshot_id;

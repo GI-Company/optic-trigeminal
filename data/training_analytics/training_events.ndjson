@@ -2858,3 +2858,68 @@
     "immutable": true
   }
 }
+{
+  "event_id": "EVT-1787717079-0",
+  "session_id": "SEPSIS_EARLY_001_1787717079",
+  "scenario_id": "SEPSIS_EARLY_001",
+  "timestamp": 1787717079,
+  "event_type": "SESSION_START",
+  "event_data": "{\"nurse_id\":\"RN_001\",\"age\":64,\"sex\":\"M\",\"diagnosis\":\"Suspected infection\",\"hr\":89,\"rr\":18,\"spo2\":96,\"bp_sys\":116,\"bp_dia\":71,\"temp\":36.8642}",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787717088-1",
+  "session_id": "SEPSIS_EARLY_001_1787717079",
+  "scenario_id": "",
+  "timestamp": 1787717088,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=get_blood_cultures nurse_id=RN_001 timely=true grade=partially_correct delta=0.020000",
+  "elapsed_seconds": 120,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787717090-2",
+  "session_id": "SEPSIS_EARLY_001_1787717079",
+  "scenario_id": "",
+  "timestamp": 1787717090,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=initiate_sepsis_bundle nurse_id=RN_001 timely=false grade=premature delta=-0.020000",
+  "elapsed_seconds": 120,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787717091-3",
+  "session_id": "SEPSIS_EARLY_001_1787717079",
+  "scenario_id": "",
+  "timestamp": 1787717091,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=notify_provider nurse_id=RN_001 timely=true grade=partially_correct delta=0.020000",
+  "elapsed_seconds": 180,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787717111-4",
+  "session_id": "SEPSIS_EARLY_001_1787717079",
+  "scenario_id": "",
+  "timestamp": 1787717111,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=get_blood_cultures nurse_id=RN_001 timely=true grade=partially_correct delta=0.020000",
+  "elapsed_seconds": 480,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}

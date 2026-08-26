@@ -66,9 +66,77 @@ const FORK_COLORS = ['#f472b6', '#fbbf24', '#34d399', '#818cf8'];
 const CHART_WIDTH = 600;
 const CHART_HEIGHT = 180;
 const PAD = 28;
+const BAND_HEIGHT = 18;
+
+// Phase portrait (HR vs. systolic BP state space) -- fixed axis bounds
+// rather than auto-scaled to whatever's currently visible, so the "shape"
+// of a trajectory means the same thing every time you look at it: a tiny
+// wiggle for a stable patient stays visually tiny, a real crisis swing
+// stays visually large. Bounds are wide enough to comfortably cover what
+// this simulator's tuned physiology actually produces (see
+// src/clinical/ode_physiology.cpp's crisis/drug ceilings), not the
+// absolute hard clamps in apply_hard_limits -- an excursion beyond this
+// box would already be off the edge of clinically-plausible for this model.
+const PHASE_SIZE = 220;
+const PHASE_PAD = 34;
+const PHASE_BP_MIN = 40, PHASE_BP_MAX = 220;
+const PHASE_HR_MIN = 30, PHASE_HR_MAX = 200;
+// Illustrative adult "normal" reference box -- a rough teaching anchor
+// (roughly HR 60-100, SBP 90-140), not a clinical cutoff or NEWS2/qSOFA
+// threshold in its own right.
+const PHASE_NORMAL_BP = [90, 140];
+const PHASE_NORMAL_HR = [60, 100];
+
+// Causal attribution band (CCPC layer 1) -- color + label per
+// dominant_physiology_driver id (src/clinical/ode_physiology.cpp).
+// Deliberately a different, more saturated palette than FORK_COLORS/VITALS
+// above so a band segment is never confused with a vital line or a fork
+// overlay. "baseline" is desaturated slate -- a quiet strip meaning
+// nothing hidden is meaningfully off right now.
+const DRIVER_META: Record<string, { label: string; color: string }> = {
+  infection: { label: 'Infection', color: '#dc2626' },
+  hypovolemia: { label: 'Low volume', color: '#ea580c' },
+  vasodilation: { label: 'Vasodilation', color: '#ca8a04' },
+  hypoxia: { label: 'Hypoxia', color: '#0891b2' },
+  low_contractility: { label: 'Low contractility', color: '#7c3aed' },
+  vasopressor: { label: 'Vasopressor', color: '#db2777' },
+  fluid_resuscitation: { label: 'Fluid resuscitation', color: '#0d9488' },
+  antipyretic: { label: 'Antipyretic', color: '#4f46e5' },
+  baseline: { label: 'Near baseline', color: '#475569' }
+};
+
+const SCORE_RIBBON_HEIGHT = 28;
+// NEWS2 totals at/above this render at full ribbon height -- 20 is the
+// real theoretical max, but this simulator's tuned physiology rarely
+// pushes a single snapshot past single digits, so scaling to the full
+// theoretical range would make almost every bar look tiny.
+const SCORE_RIBBON_MAX = 10;
+
+// Colors deliberately reuse a tracked vital's own line color where a
+// direct one exists (heart_rate/spo2/respiration/temperature), so "this
+// ribbon segment is cyan" reads as "heart rate" the same way it does in
+// the chart above it. The three NEWS2 parameters with no vitals-chart
+// line of their own (systolic BP, supplemental O2, consciousness) get new
+// colors not used anywhere else in this file.
+const NEWS2_PARAM_META: Record<string, { label: string; color: string }> = {
+  heart_rate: { label: 'Heart rate', color: '#22d3ee' },
+  spo2: { label: 'Oxygen saturation', color: '#60a5fa' },
+  respiration: { label: 'Respiratory rate', color: '#a78bfa' },
+  temperature: { label: 'Temperature', color: '#fbbf24' },
+  systolic: { label: 'Systolic BP', color: '#f97316' },
+  oxygen: { label: 'Supplemental O2', color: '#14b8a6' },
+  consciousness: { label: 'Consciousness', color: '#e879f9' },
+  none: { label: 'No points scored', color: '#475569' }
+};
 
 interface ActiveFork extends PatientFork {
   color: string;
+  // The timestamp the fork branched from -- captured client-side from
+  // selectedForkPoint at creation time (the same value already sent to
+  // POST /api/clinical/fork as from_timestamp) rather than round-tripped
+  // back from the server, since the create response doesn't echo it and
+  // the value we sent is already authoritative.
+  originTimestamp: number;
 }
 
 // Overlay panel (same backdrop+glass-card visual language as Modal.ts,
@@ -112,6 +180,7 @@ export class VitalHistoryPanel extends Component {
           ${this.renderChart()}
           ${this.renderLegend()}
           ${this.renderForkControls()}
+          ${this.renderPhasePortrait()}
           ${this.renderCorrelatedEntries()}
           ${this.renderExplanation()}
         </div>
@@ -231,7 +300,20 @@ export class VitalHistoryPanel extends Component {
       const step = Math.max(1, Math.ceil(traj.length / targetPoints));
       const sampled = traj.filter((_, i) => i % step === 0 || i === traj.length - 1);
       const points = sampled.map(pt => `${xOf(pt.timestamp).toFixed(1)},${yOf(meta.trajectoryValue(pt)).toFixed(1)}`).join(' ');
-      return `<polyline points="${points}" fill="none" stroke="${fork.color}" stroke-width="2" stroke-dasharray="6,4" opacity="0.9" stroke-linejoin="round" stroke-linecap="round" />`;
+      return `<polyline points="${points}" fill="none" stroke="${fork.color}" stroke-width="2.5" stroke-dasharray="7,4" opacity="0.95" stroke-linejoin="round" stroke-linecap="round" />`;
+    }).join('');
+
+    // Persistent origin marker per active fork -- where it actually branched
+    // from, distinct from the transient dashed selectedMarker below (which
+    // only exists while still picking a point, and disappears once a fork is
+    // run). Solid, in the fork's own color, with a small flag at the top so
+    // several forks from different origins stay visually distinguishable.
+    const forkOriginMarkers = this.activeForks.map(fork => {
+      const x = xOf(fork.originTimestamp).toFixed(1);
+      return `<g opacity="0.85">
+        <line x1="${x}" y1="${PAD}" x2="${x}" y2="${CHART_HEIGHT - PAD}" stroke="${fork.color}" stroke-width="1.5" />
+        <circle cx="${x}" cy="${PAD}" r="3" fill="${fork.color}" />
+      </g>`;
     }).join('');
 
     return `
@@ -240,14 +322,131 @@ export class VitalHistoryPanel extends Component {
           <line x1="${PAD}" y1="${CHART_HEIGHT - PAD}" x2="${CHART_WIDTH - PAD}" y2="${CHART_HEIGHT - PAD}" stroke="#334155" stroke-width="1" />
           ${lines}
           ${forkOverlays}
+          ${forkOriginMarkers}
           ${selectedMarker}
           ${markers}
         </svg>
-        <div class="flex justify-between text-[10px] text-slate-600 mt-1">
+        <div class="flex justify-between text-[10px] text-slate-600 mt-1 mb-2">
           <span>${new Date(minTs * 1000).toLocaleTimeString()}</span>
           <span class="text-slate-500">Click the chart to explore a counterfactual from that point →</span>
           <span>${new Date(maxTs * 1000).toLocaleTimeString()}</span>
         </div>
+        ${this.renderAttributionBand(minTs, maxTs)}
+        ${this.renderScoreRibbon(minTs, maxTs)}
+      </div>
+    `;
+  }
+
+  // Score-contribution ribbon (CCPC layer 2): a small histogram under the
+  // attribution band -- bar height is the NEWS2 total at that snapshot,
+  // color is whichever single parameter contributed the most points. A
+  // different lens than the attribution band above: that one explains the
+  // hidden physiology *causing* the vitals, this shows which *observable,
+  // scored* parameter is actually moving the number a nurse escalates on --
+  // they can genuinely disagree (a patient can be physiologically septic
+  // before any single NEWS2 parameter has crossed into scoring territory).
+  private renderScoreRibbon(minTs: number, maxTs: number): string {
+    const { patient } = this.config;
+    const timestamps = patient.snapshot_timestamps;
+    const totals = patient.snapshot_news2_total;
+    const dominants = patient.snapshot_news2_dominant;
+    if (!timestamps || !totals || !dominants || timestamps.length === 0) return '';
+
+    const xOf = (ts: number) => this.xOf(ts, minTs, maxTs);
+    const indices = timestamps
+      .map((_, i) => i)
+      .filter(i => timestamps[i] >= minTs && timestamps[i] <= maxTs);
+    if (indices.length === 0) return '';
+
+    const segments = indices.map((idx, pos) => {
+      const startTs = timestamps[idx];
+      const endTs = pos + 1 < indices.length ? timestamps[indices[pos + 1]] : maxTs;
+      const x1 = xOf(startTs);
+      const x2 = Math.max(x1 + 1, xOf(endTs));
+      const total = totals[idx] ?? 0;
+      const dominantId = dominants[idx] || 'none';
+      const meta = NEWS2_PARAM_META[dominantId] || NEWS2_PARAM_META.none;
+      const frac = Math.min(1, total / SCORE_RIBBON_MAX);
+      const barHeight = total === 0 ? 2 : Math.max(3, frac * SCORE_RIBBON_HEIGHT);
+      const y = SCORE_RIBBON_HEIGHT - barHeight;
+      const label = total === 0 ? 'No NEWS2 points' : `${this.escape(meta.label)}: ${total} pt${total === 1 ? '' : 's'} of NEWS2 total`;
+      return `<rect x="${x1.toFixed(1)}" y="${y.toFixed(1)}" width="${(x2 - x1).toFixed(1)}" height="${barHeight.toFixed(1)}" fill="${meta.color}" opacity="${total === 0 ? 0.3 : 0.85}"><title>${label} @ ${new Date(startTs * 1000).toLocaleTimeString()}</title></rect>`;
+    }).join('');
+
+    const present = Array.from(new Set(indices.map(i => dominants[i] || 'none')));
+    const legend = present.map(id => {
+      const meta = NEWS2_PARAM_META[id] || NEWS2_PARAM_META.none;
+      return `<span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full inline-block" style="background:${meta.color}"></span>${this.escape(meta.label)}</span>`;
+    }).join('');
+
+    return `
+      <div class="pt-1 mt-1 border-t border-slate-800/70">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Score Contribution (NEWS2)</span>
+          <span class="text-[10px] text-slate-600">Bar height = points scored, color = which parameter</span>
+        </div>
+        <svg viewBox="0 0 ${CHART_WIDTH} ${SCORE_RIBBON_HEIGHT}" class="w-full" style="height:${SCORE_RIBBON_HEIGHT}px" preserveAspectRatio="none">
+          ${segments}
+        </svg>
+        <div class="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-[10px] text-slate-500">${legend}</div>
+      </div>
+    `;
+  }
+
+  // Causal attribution band (CCPC layer 1): a thin strip under the live
+  // line showing which single hidden physiology term or active drug best
+  // explains the vitals at each point in the visible window -- the "why"
+  // layer the fork overlay above doesn't answer on its own. Reuses the
+  // same CHART_WIDTH-based x-mapping as the line chart above so it lines
+  // up under it exactly (same PAD, same viewBox width).
+  private renderAttributionBand(minTs: number, maxTs: number): string {
+    const { patient } = this.config;
+    const timestamps = patient.snapshot_timestamps;
+    const drivers = patient.snapshot_drivers;
+    const magnitudes = patient.snapshot_driver_magnitudes;
+    if (!timestamps || !drivers || !magnitudes || timestamps.length === 0) return '';
+
+    const xOf = (ts: number) => this.xOf(ts, minTs, maxTs);
+
+    // The snapshot ring (up to 120 ticks) reaches further back than the
+    // ~20-sample vitals line it sits under -- filter to what's actually in
+    // the currently visible window rather than assuming the two arrays
+    // are the same length.
+    const indices = timestamps
+      .map((_, i) => i)
+      .filter(i => timestamps[i] >= minTs && timestamps[i] <= maxTs);
+    if (indices.length === 0) return '';
+
+    const segments = indices.map((idx, pos) => {
+      const startTs = timestamps[idx];
+      const endTs = pos + 1 < indices.length ? timestamps[indices[pos + 1]] : maxTs;
+      const x1 = xOf(startTs);
+      const x2 = Math.max(x1 + 1, xOf(endTs));
+      const driverId = drivers[idx] || 'baseline';
+      const meta = DRIVER_META[driverId] || DRIVER_META.baseline;
+      const magnitude = magnitudes[idx] ?? 0;
+      const opacity = driverId === 'baseline' ? 0.25 : 0.35 + magnitude * 0.55;
+      return `<rect x="${x1.toFixed(1)}" y="0" width="${(x2 - x1).toFixed(1)}" height="${BAND_HEIGHT}" fill="${meta.color}" opacity="${opacity.toFixed(2)}"><title>${this.escape(meta.label)} (${Math.round(magnitude * 100)}%) @ ${new Date(startTs * 1000).toLocaleTimeString()}</title></rect>`;
+    }).join('');
+
+    // Legend only lists drivers actually present in this window -- never a
+    // dead entry for something that isn't currently shown.
+    const present = Array.from(new Set(indices.map(i => drivers[i] || 'baseline')));
+    const legend = present.map(id => {
+      const meta = DRIVER_META[id] || DRIVER_META.baseline;
+      return `<span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full inline-block" style="background:${meta.color}"></span>${this.escape(meta.label)}</span>`;
+    }).join('');
+
+    return `
+      <div class="pt-1 border-t border-slate-800/70">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Causal Attribution</span>
+          <span class="text-[10px] text-slate-600">What's driving these vitals -- not a diagnosis</span>
+        </div>
+        <svg viewBox="0 0 ${CHART_WIDTH} ${BAND_HEIGHT}" class="w-full" style="height:${BAND_HEIGHT}px" preserveAspectRatio="none">
+          ${segments}
+        </svg>
+        <div class="flex flex-wrap gap-x-3 gap-y-1 mt-1.5 text-[10px] text-slate-500">${legend}</div>
       </div>
     `;
   }
@@ -299,23 +498,123 @@ export class VitalHistoryPanel extends Component {
     }
 
     if (this.activeForks.length > 0) {
+      const fmt = (v: number) => this.config.vital === 'temp' ? v.toFixed(1) : String(Math.round(v));
       parts.push(`
         <div class="mb-3">
           <h4 class="text-xs font-semibold text-slate-400 mb-1.5">Active counterfactuals for ${meta.label}</h4>
           <ul class="space-y-1">
-            ${this.activeForks.map(fork => `
+            ${this.activeForks.map(fork => {
+              // Delta summary for the currently-selected vital, start vs end
+              // of this fork's own trajectory -- always available (unlike a
+              // comparison to "what actually happened," which doesn't exist
+              // yet for a future the real patient hasn't lived through) and
+              // lets a student read the net effect without eyeballing the chart.
+              let delta = '';
+              if (fork.trajectory.length > 0) {
+                const start = meta.trajectoryValue(fork.trajectory[0]);
+                const end = meta.trajectoryValue(fork.trajectory[fork.trajectory.length - 1]);
+                const diff = end - start;
+                const sign = diff > 0 ? '+' : '';
+                delta = `<span class="text-slate-500">${fmt(start)} → ${fmt(end)} ${meta.unit} (${sign}${fmt(diff)})</span>`;
+              }
+              return `
               <li class="flex items-center gap-2 text-xs text-slate-300 bg-slate-900/40 border border-slate-800 rounded px-2 py-1.5">
                 <span class="w-3 h-0.5 inline-block" style="background:${fork.color}"></span>
                 <span>→ projected: ${this.escape(fork.intervention_label)}</span>
+                ${delta}
                 <button class="fork-remove-btn ml-auto text-slate-500 hover:text-red-400" data-fork-id="${this.escape(fork.fork_id)}">&times;</button>
               </li>
-            `).join('')}
+            `;
+            }).join('')}
           </ul>
         </div>
       `);
     }
 
     return parts.join('');
+  }
+
+  // Phase portrait: the same history plotted as a trajectory through
+  // HR-vs-systolic-BP state space instead of against time -- students are
+  // taught to read shock staging off exactly this relationship (compensated
+  // shock: HR climbs while BP holds; decompensation: both break away
+  // together), which a time-series chart makes you infer and this makes
+  // directly visible. Reuses the snapshot ring (see renderAttributionBand)
+  // for HR/BP since there's no separate rolling BP history array.
+  private renderPhasePortrait(): string {
+    const { patient } = this.config;
+    const timestamps = patient.snapshot_timestamps;
+    const hrs = patient.snapshot_hr;
+    const bps = patient.snapshot_bp_sys;
+    if (!timestamps || !hrs || !bps || timestamps.length === 0) return '';
+
+    const { minTs, maxTs } = this.timeDomain();
+    const indices = timestamps
+      .map((_, i) => i)
+      .filter(i => timestamps[i] >= minTs && timestamps[i] <= maxTs);
+    if (indices.length < 2) return '';
+
+    const xOf = (bp: number) => PHASE_PAD + ((bp - PHASE_BP_MIN) / (PHASE_BP_MAX - PHASE_BP_MIN)) * (PHASE_SIZE - 2 * PHASE_PAD);
+    const yOf = (hr: number) => PHASE_SIZE - PHASE_PAD - ((hr - PHASE_HR_MIN) / (PHASE_HR_MAX - PHASE_HR_MIN)) * (PHASE_SIZE - 2 * PHASE_PAD);
+
+    // Segments (not one polyline) so each can fade from dim (oldest) to
+    // bright (most recent) -- shows direction of travel without needing
+    // arrowheads cluttering a small chart.
+    const segments = indices.slice(0, -1).map((idx, pos) => {
+      const nextIdx = indices[pos + 1];
+      const frac = pos / Math.max(1, indices.length - 2);
+      const opacity = 0.15 + frac * 0.65;
+      return `<line x1="${xOf(bps[idx]).toFixed(1)}" y1="${yOf(hrs[idx]).toFixed(1)}" x2="${xOf(bps[nextIdx]).toFixed(1)}" y2="${yOf(hrs[nextIdx]).toFixed(1)}" stroke="#22d3ee" stroke-width="2" opacity="${opacity.toFixed(2)}" stroke-linecap="round" />`;
+    }).join('');
+
+    const lastIdx = indices[indices.length - 1];
+    const curX = xOf(bps[lastIdx]);
+    const curY = yOf(hrs[lastIdx]);
+
+    // Active forks in the same space, same dashed/per-fork-color treatment
+    // as the main chart overlay -- down-sampled the same way for the same
+    // jitter-avoidance reason (see renderChart).
+    const forkSegments = this.activeForks.map(fork => {
+      const pts = fork.trajectory.filter(pt => pt.timestamp >= minTs && pt.timestamp <= maxTs);
+      if (pts.length < 2) return '';
+      const targetPoints = 30;
+      const step = Math.max(1, Math.ceil(pts.length / targetPoints));
+      const sampled = pts.filter((_, i) => i % step === 0 || i === pts.length - 1);
+      const points = sampled.map(pt => `${xOf(pt.bp_sys).toFixed(1)},${yOf(pt.hr).toFixed(1)}`).join(' ');
+      return `<polyline points="${points}" fill="none" stroke="${fork.color}" stroke-width="2" stroke-dasharray="5,3" opacity="0.85" stroke-linejoin="round" stroke-linecap="round" />`;
+    }).join('');
+
+    const boxX1 = xOf(PHASE_NORMAL_BP[0]), boxX2 = xOf(PHASE_NORMAL_BP[1]);
+    const boxY1 = yOf(PHASE_NORMAL_HR[0]), boxY2 = yOf(PHASE_NORMAL_HR[1]);
+    const bpTicks = [60, 100, 140, 180];
+    const hrTicks = [40, 80, 120, 160];
+
+    return `
+      <div class="bg-slate-900/50 border border-slate-800 rounded-lg p-3 mb-3">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-slate-300">Phase Portrait</span>
+          <span class="text-[10px] text-slate-600">Heart Rate vs. Systolic BP -- state space, not time</span>
+        </div>
+        <div class="flex gap-4 items-start">
+          <svg viewBox="0 0 ${PHASE_SIZE} ${PHASE_SIZE}" class="flex-shrink-0" style="width:${PHASE_SIZE}px;height:${PHASE_SIZE}px">
+            <rect x="${PHASE_PAD}" y="${PHASE_PAD}" width="${PHASE_SIZE - 2 * PHASE_PAD}" height="${PHASE_SIZE - 2 * PHASE_PAD}" fill="none" stroke="#334155" stroke-width="1" />
+            <rect x="${boxX1.toFixed(1)}" y="${boxY2.toFixed(1)}" width="${(boxX2 - boxX1).toFixed(1)}" height="${(boxY1 - boxY2).toFixed(1)}" fill="#34d399" opacity="0.08" stroke="#34d399" stroke-width="1" stroke-dasharray="3,2" />
+            ${bpTicks.map(t => `<line x1="${xOf(t).toFixed(1)}" y1="${PHASE_SIZE - PHASE_PAD}" x2="${xOf(t).toFixed(1)}" y2="${PHASE_SIZE - PHASE_PAD + 4}" stroke="#475569" stroke-width="1" /><text x="${xOf(t).toFixed(1)}" y="${PHASE_SIZE - PHASE_PAD + 14}" font-size="8" fill="#64748b" text-anchor="middle">${t}</text>`).join('')}
+            ${hrTicks.map(t => `<line x1="${PHASE_PAD - 4}" y1="${yOf(t).toFixed(1)}" x2="${PHASE_PAD}" y2="${yOf(t).toFixed(1)}" stroke="#475569" stroke-width="1" /><text x="${(PHASE_PAD - 7).toFixed(1)}" y="${(yOf(t) + 3).toFixed(1)}" font-size="8" fill="#64748b" text-anchor="end">${t}</text>`).join('')}
+            ${segments}
+            ${forkSegments}
+            <circle cx="${curX.toFixed(1)}" cy="${curY.toFixed(1)}" r="4" fill="#22d3ee" stroke="#0f172a" stroke-width="1.5" />
+          </svg>
+          <div class="flex-1 text-[10px] text-slate-500 space-y-1.5 pt-1">
+            <p><span class="text-cyan-400">●</span> current position &nbsp; <span class="text-slate-400">—</span> brightens toward the present</p>
+            <p><span class="inline-block w-2.5 h-2.5 rounded-sm border border-dashed border-emerald-500/50 bg-emerald-500/10 align-[-1px]"></span> illustrative normal-adult range (SBP 90-140, HR 60-100) -- a rough teaching anchor, not a clinical cutoff</p>
+            <p>X: Systolic BP (mmHg) &nbsp; Y: Heart Rate (bpm)</p>
+            <p>Compensated shock often shows HR climbing while BP still holds near the box; decompensation shows both breaking away together.</p>
+            ${this.activeForks.length > 0 ? `<p class="text-slate-400">Dashed: active counterfactual forks (color key below).</p>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   private renderCorrelatedEntries(): string {
@@ -464,6 +763,8 @@ export class VitalHistoryPanel extends Component {
     this.forkError = null;
     this.refresh();
 
+    const originTimestamp = this.selectedForkPoint;
+
     try {
       const fork = await apiClient.createFork(
         this.config.patient.id,
@@ -473,7 +774,7 @@ export class VitalHistoryPanel extends Component {
       );
       const color = FORK_COLORS[this.nextForkColor % FORK_COLORS.length];
       this.nextForkColor++;
-      this.activeForks.push({ ...fork, color });
+      this.activeForks.push({ ...fork, color, originTimestamp });
       this.selectedForkPoint = null;
     } catch (err: any) {
       this.forkError = `Failed to run counterfactual: ${err?.message || err}`;

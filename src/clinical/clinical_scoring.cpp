@@ -1,6 +1,8 @@
 #include "../include/clinical_scoring.h"
 #include <algorithm>
 #include <cmath>
+#include <vector>
+#include <utility>
 
 // ============================================================
 // NEWS2 (Royal College of Physicians, 2017) -- SpO2 Scale 1 only (Scale 2,
@@ -202,4 +204,22 @@ MEWSResult calculate_mews(const Vitals& v) {
     else r.risk_level = "Low";
 
     return r;
+}
+
+NEWS2Contribution dominant_news2_contributor(const NEWS2Result& r) {
+    const std::vector<std::pair<std::string, int>> candidates = {
+        {"consciousness", r.consciousness_score},
+        {"spo2", r.spo2_score},
+        {"systolic", r.systolic_score},
+        {"respiration", r.respiration_score},
+        {"heart_rate", r.heart_rate_score},
+        {"temperature", r.temperature_score},
+        {"oxygen", r.oxygen_score},
+    };
+
+    NEWS2Contribution best{"none", 0};
+    for (const auto& [name, points] : candidates) {
+        if (points > best.points) best = {name, points};
+    }
+    return best;
 }

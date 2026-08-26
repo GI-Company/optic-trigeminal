@@ -339,6 +339,7 @@ function renderPatientDetail(): void {
     currentStaffName: state.currentStaffName,
     roleCapabilities: roleCapabilities[state.currentRole!],
     onBack: () => {
+      mountedPatientDetail = null;
       router.navigate('/dashboard');
     },
     onAddNote: async (content: string) => {
@@ -396,7 +397,17 @@ function renderPatientDetail(): void {
   });
 
   detail.mount(app);
+  mountedPatientDetail = detail;
 }
+
+// Holds the mounted PatientDetail instance so setupAutoRefresh's poll can
+// patch just the vital numbers (updateVitals) instead of re-running
+// renderPatientDetail() wholesale -- see updateVitals's own comment in
+// PatientDetail.ts for why a full remount isn't the fix here (it would
+// re-fire the page's fade-in animation and blow away in-progress state
+// like an unsent note draft, the same flash TrainingMode.updateLiveData
+// was already written to avoid).
+let mountedPatientDetail: PatientDetail | null = null;
 
 function renderReasoningTrace(): void {
   const state = store.getState();
@@ -612,9 +623,23 @@ function showConnectionError(): void {
 }
 
 function setupAutoRefresh(): void {
-  setInterval(() => {
+  setInterval(async () => {
     if (router.isOn('/dashboard')) {
       loadPatients().catch(console.error);
+    } else if (router.isOn('/patient') && mountedPatientDetail) {
+      // Patient detail used to have no live-refresh path at all -- vitals
+      // (and anything read from store.getSelectedPatient() while here, e.g.
+      // the counterfactual-fork panel's snapshot/attribution data) froze at
+      // whatever they were the moment the page opened. loadPatients()
+      // refreshes the whole roster in the store; updateVitals then patches
+      // just this patient's numbers rather than remounting the page.
+      try {
+        await loadPatients();
+        const updated = store.getSelectedPatient();
+        if (updated) mountedPatientDetail?.updateVitals(updated);
+      } catch (e) {
+        console.error('Failed to refresh patient detail:', e);
+      }
     }
   }, 5000);
 }

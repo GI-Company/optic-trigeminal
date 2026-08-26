@@ -53,6 +53,29 @@ the codebase changes, rather than left to drift from the README's marketing lang
   antibiotics, an antipyretic) have real, mechanical, time-limited effects on the
   physiology model via `HTTPServer::handle_action` — illustrative typical-dose defaults,
   not calibrated to any real dosing protocol.
+- **Causal Counterfactual Patient Charts (CCPC), as of 2026-08-24** (`PatientFork` in
+  `include/clinical_sim.h`, `VitalHistoryPanel.ts`): a nurse/instructor can branch a
+  counterfactual from any past snapshot ("what if a vasopressor had started here?") and
+  see the projected trajectory overlaid, dashed, on the real one — always clearly labeled
+  as a projection, never rendered as if it were observed data, and never mutating the real
+  patient. The "causal attribution band" under the live chart names which single hidden
+  physiology term or active drug (`dominant_physiology_driver` in `ode_physiology.cpp`)
+  most explains the current vitals; it is a transparency layer onto this model's own
+  internal state, not a diagnosis and not a claim about a real patient's actual
+  pathophysiology — its magnitude scale is normalized against this simulator's own
+  parameter bounds, not a clinical severity scale. A "phase portrait" view plots the same
+  history as HR vs. systolic BP instead of against time, with a shaded illustrative
+  normal-adult reference box (SBP 90-140, HR 60-100) — a rough teaching anchor, not a
+  validated clinical cutoff or a NEWS2/qSOFA threshold in its own right. Its axes use
+  fixed bounds (40-220 mmHg, 30-200 bpm) chosen to comfortably cover what this model's
+  tuned physiology actually produces, not this simulator's absolute hard clamps. A
+  "score-contribution ribbon" (`dominant_news2_contributor` in `clinical_scoring.cpp`)
+  shows which single NEWS2 parameter is contributing the most points at each point in the
+  visible window — a genuinely different signal than the causal attribution band above it
+  (that one is the hidden physiology *causing* the vitals; this is which *observable,
+  scored* parameter is actually moving the escalation number), and the two can disagree,
+  e.g. a patient can be physiologically septic before any single NEWS2 parameter has
+  crossed into scoring territory.
 - `src/clinical/training_scenario.cpp`'s `ScenarioRuntime` is a separate, independent
   system for instructor-authored scripted scenarios — it doesn't share this simulator's
   limitations or its eventual improvements one-for-one, since its design goal

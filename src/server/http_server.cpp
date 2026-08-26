@@ -16,6 +16,7 @@
 #include "crypto_utils.h"
 #include "embedded_web_assets.h"
 #include "clinical_scoring.h"
+#include "ode_physiology.h"
 #include <chrono>
 #include <cstdint>
 #include <iomanip>
@@ -900,6 +901,75 @@ HTTPServer::Response HTTPServer::handle_patients(const Request& req) {
         for (size_t i = 0; i < p.snapshots.size(); ++i) {
             if (i > 0) body << ",";
             body << static_cast<long>(p.snapshots[i].timestamp);
+        }
+        body << "]";
+
+        // Causal attribution bands (CCPC layer 1): which hidden physiology
+        // term or active drug best explains each snapshot's vitals, so the
+        // frontend can render a "why" strip under the observed-vitals line
+        // without duplicating any clinical judgment in TypeScript -- see
+        // dominant_physiology_driver in ode_physiology.cpp. Parallel to
+        // snapshot_timestamps by index.
+        std::vector<PhysiologyDriver> snapshot_drivers;
+        snapshot_drivers.reserve(p.snapshots.size());
+        for (const auto& snap : p.snapshots) {
+            snapshot_drivers.push_back(dominant_physiology_driver(snap.physiology, snap.active_drugs));
+        }
+        body << ",\"snapshot_drivers\":[";
+        for (size_t i = 0; i < snapshot_drivers.size(); ++i) {
+            if (i > 0) body << ",";
+            body << "\"" << json_escape(snapshot_drivers[i].id) << "\"";
+        }
+        body << "]";
+        body << ",\"snapshot_driver_magnitudes\":[";
+        for (size_t i = 0; i < snapshot_drivers.size(); ++i) {
+            if (i > 0) body << ",";
+            body << snapshot_drivers[i].magnitude;
+        }
+        body << "]";
+
+        // Phase portrait (CCPC layer: HR-vs-SBP state space): the 20-sample
+        // display history above has no BP history array at all (only the
+        // current instantaneous vitals.bp_sys), so this reuses the same
+        // 120-tick snapshot ring the attribution band above already reads
+        // rather than adding yet another rolling array to Patient. Parallel
+        // to snapshot_timestamps by index.
+        body << ",\"snapshot_hr\":[";
+        for (size_t i = 0; i < p.snapshots.size(); ++i) {
+            if (i > 0) body << ",";
+            body << p.snapshots[i].vitals.hr;
+        }
+        body << "]";
+        body << ",\"snapshot_bp_sys\":[";
+        for (size_t i = 0; i < p.snapshots.size(); ++i) {
+            if (i > 0) body << ",";
+            body << p.snapshots[i].vitals.bp_sys;
+        }
+        body << "]";
+
+        // Score-contribution ribbon (CCPC layer 2): which single NEWS2
+        // parameter is driving the early-warning score at each snapshot, and
+        // how many of its points -- a different lens than the attribution
+        // band above (that one explains the hidden physiology *causing* the
+        // vitals; this one explains which *observable, scored* parameter is
+        // actually moving the number a nurse escalates on). See
+        // dominant_news2_contributor in clinical_scoring.cpp. Parallel to
+        // snapshot_timestamps by index.
+        std::vector<NEWS2Result> snapshot_news2;
+        snapshot_news2.reserve(p.snapshots.size());
+        for (const auto& snap : p.snapshots) {
+            snapshot_news2.push_back(calculate_news2(snap.vitals));
+        }
+        body << ",\"snapshot_news2_total\":[";
+        for (size_t i = 0; i < snapshot_news2.size(); ++i) {
+            if (i > 0) body << ",";
+            body << snapshot_news2[i].total_score;
+        }
+        body << "]";
+        body << ",\"snapshot_news2_dominant\":[";
+        for (size_t i = 0; i < snapshot_news2.size(); ++i) {
+            if (i > 0) body << ",";
+            body << "\"" << json_escape(dominant_news2_contributor(snapshot_news2[i]).parameter) << "\"";
         }
         body << "]";
 

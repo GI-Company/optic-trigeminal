@@ -109,7 +109,7 @@ export class PatientDetail extends Component {
         <div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
         <div class="text-[11px] text-slate-500 font-medium uppercase tracking-wider mb-2">${label}</div>
         <div class="flex items-baseline gap-1">
-          <div class="text-4xl font-bold ${colorClass}">${value}</div>
+          <div id="vital-value-${vital}" class="text-4xl font-bold ${colorClass}">${value}</div>
           <div class="text-xs text-slate-500 font-medium">${unit}</div>
         </div>
         <div class="mt-2 text-[10px] text-slate-600 group-hover:text-cyan-400 transition-colors">View history →</div>
@@ -198,5 +198,34 @@ export class PatientDetail extends Component {
       chartArea.innerHTML = this.renderChartEntries();
       chartArea.scrollTop = chartArea.scrollHeight;
     }
+  }
+
+  // Patches just the four vital numbers (+ their threshold-driven color) in
+  // place, the same targeted-update pattern as TrainingMode.updateLiveData --
+  // this used to have no live-update path at all: setupAutoRefresh()
+  // (main-refactored.ts) only polled the server while on the dashboard
+  // route, so a patient's vitals silently froze at whatever they were the
+  // moment you opened their detail page (and any counterfactual-fork /
+  // attribution-band UI opened from here inherited that same stale
+  // snapshot) until you navigated back out and in again. Deliberately
+  // patches text/class on existing nodes rather than replacing the
+  // .vital-card outerHTML -- that click handler is bound with a direct
+  // addEventListener (see Component.on), not delegation, so swapping the
+  // node would silently drop "View history" for that vital.
+  updateVitals(patient: Patient): void {
+    this.config.patient = patient;
+    if (!this.element) return;
+
+    const setVital = (vital: VitalKey, value: string, colorClass?: string) => {
+      const el = this.element!.querySelector<HTMLElement>(`#vital-value-${vital}`);
+      if (!el) return;
+      el.textContent = value;
+      if (colorClass) el.className = `text-4xl font-bold ${colorClass}`;
+    };
+
+    setVital('hr', String(patient.vitals.hr), patient.vitals.hr > 100 ? 'text-red-400' : 'text-cyan-400');
+    setVital('rr', String(patient.vitals.rr));
+    setVital('spo2', String(patient.vitals.spo2), patient.vitals.spo2 < 95 ? 'text-red-400' : 'text-cyan-400');
+    setVital('temp', patient.vitals.temp.toFixed(1));
   }
 }

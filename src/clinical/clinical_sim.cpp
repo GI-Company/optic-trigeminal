@@ -226,6 +226,26 @@ int ClinicalSimulator::admit_patient(const std::string& name, const std::string&
 bool ClinicalSimulator::administer_drug(int patient_id, DrugType type, float dose, float duration_seconds) {
     for (auto& p : patients) {
         if (p.id == patient_id) {
+            // Re-dosing a type that's already running updates that same
+            // entry (dose + remaining_seconds) instead of pushing another
+            // one -- matches the real intent ("this patient's vasopressor
+            // rate/duration just changed", not "a second, independent
+            // vasopressor infusion started"), and closes off an unbounded-
+            // growth path: apply_drug_effects has no cap on active_drugs,
+            // so a double-clicked button or a client retry loop could
+            // otherwise queue an unbounded number of entries on one
+            // patient -- the same bug *class* (not the same bug) as the
+            // learn-on-read graph growth fixed earlier this session.
+            for (auto& existing : p.active_drugs) {
+                if (existing.type == type) {
+                    existing.dose = dose;
+                    existing.remaining_seconds = duration_seconds;
+                    if (type == DrugType::Oxygen) {
+                        p.vitals.on_oxygen = true;
+                    }
+                    return true;
+                }
+            }
             ActiveDrug drug;
             drug.type = type;
             drug.dose = dose;
@@ -270,11 +290,29 @@ std::string ClinicalSimulator::create_fork(int patient_id, std::time_t from_time
     fork.active_drugs = source->active_drugs;
 
     if (has_intervention) {
-        ActiveDrug drug;
-        drug.type = intervention_type;
-        drug.dose = intervention_dose;
-        drug.remaining_seconds = 1800.0f; // matches handle_action's typical durations
-        fork.active_drugs.push_back(drug);
+        // Same refresh-in-place semantics as administer_drug above: if the
+        // source snapshot already had this drug type active (e.g. forking
+        // "what if the vasopressor had been re-dosed here" from a point
+        // where it's already running), update that inherited entry instead
+        // of stacking a second one -- a fork should simulate exactly what
+        // administer_drug would actually do to a real patient, not a
+        // double-counted version of it.
+        bool updated_existing = false;
+        for (auto& existing : fork.active_drugs) {
+            if (existing.type == intervention_type) {
+                existing.dose = intervention_dose;
+                existing.remaining_seconds = 1800.0f; // matches handle_action's typical durations
+                updated_existing = true;
+                break;
+            }
+        }
+        if (!updated_existing) {
+            ActiveDrug drug;
+            drug.type = intervention_type;
+            drug.dose = intervention_dose;
+            drug.remaining_seconds = 1800.0f; // matches handle_action's typical durations
+            fork.active_drugs.push_back(drug);
+        }
         if (intervention_type == DrugType::Oxygen) {
             fork.vitals.on_oxygen = true;
         }

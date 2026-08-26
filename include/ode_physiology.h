@@ -43,3 +43,22 @@ void reset_physiology_to_baseline(InternalPhysiology& phys);
 // NaN/Inf/clamp safety net, skips the elaborate streak-to-Fatal escalation
 // machinery a training simulator doesn't need.
 void apply_hard_limits(InternalPhysiology& phys, Vitals& v);
+
+// Which single hidden-state factor is contributing most to a patient's
+// current vitals right now, for the CCPC "causal attribution band" chart
+// layer -- the observable vitals alone don't say *why* HR is climbing;
+// this does, by naming the InternalPhysiology term (or active drug) with
+// the largest normalized deviation from its own healthy baseline.
+//
+// id is one of: "infection", "hypovolemia", "vasodilation", "hypoxia",
+// "low_contractility", "vasopressor", "fluid_resuscitation", "antipyretic",
+// "baseline" (nothing meaningfully deviated). magnitude is 0..1, normalized
+// against the actual bound each term is driven toward elsewhere in this
+// file (apply_crisis_physiology's floors/ceilings, apply_drug_effects'
+// dose scaling) -- not an invented scale.
+struct PhysiologyDriver {
+    std::string id;
+    float magnitude;
+};
+PhysiologyDriver dominant_physiology_driver(const InternalPhysiology& phys,
+                                             const std::vector<ActiveDrug>& active_drugs);

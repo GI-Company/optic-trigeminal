@@ -232,3 +232,43 @@ void apply_hard_limits(InternalPhysiology& phys, Vitals& v) {
     v.lactate = std::clamp(v.lactate, 0.3f, 20.0f);
     v.urine_output_ml_hr = std::clamp(v.urine_output_ml_hr, 0, 200);
 }
+
+PhysiologyDriver dominant_physiology_driver(const InternalPhysiology& phys,
+                                             const std::vector<ActiveDrug>& active_drugs) {
+    // Denominators are the actual floors/ceilings each term is driven
+    // toward elsewhere in this file, not arbitrary picks: e.g. sepsis
+    // floors circulating_volume at 0.5 (apply_crisis_physiology above), so
+    // a 0.5 deviation is "fully saturated" for hypovolemia.
+    std::vector<PhysiologyDriver> candidates = {
+        {"infection", std::clamp(phys.infection_burden, 0.0f, 1.0f)},
+        {"hypovolemia", std::clamp((1.0f - phys.circulating_volume) / 0.5f, 0.0f, 1.0f)},
+        {"vasodilation", std::clamp((1.0f - phys.systemic_vascular_resistance) / 0.7f, 0.0f, 1.0f)},
+        {"hypoxia", std::clamp(std::max(1.0f - phys.oxygenation_efficiency, phys.shunt_fraction) / 0.6f, 0.0f, 1.0f)},
+        {"low_contractility", std::clamp((1.0f - phys.contractility) / 0.4f, 0.0f, 1.0f)},
+        {"antipyretic", std::clamp(phys.antipyretic_effect, 0.0f, 1.0f)},
+    };
+
+    // Active drugs are their own candidates rather than folded into the
+    // physiology terms above -- a vasopressor pushing SVR back up reads as
+    // "vasopressor," not as a fainter "vasodilation," so the band can show
+    // a crisis-dominant -> treatment-dominant handoff as it takes effect.
+    for (const auto& drug : active_drugs) {
+        switch (drug.type) {
+            case DrugType::Norepinephrine:
+                candidates.push_back({"vasopressor", std::clamp(drug.dose / 1.7f, 0.3f, 1.0f)});
+                break;
+            case DrugType::Crystalloid:
+                candidates.push_back({"fluid_resuscitation", std::clamp(drug.dose / 1.5f, 0.3f, 1.0f)});
+                break;
+            default:
+                break;
+        }
+    }
+
+    PhysiologyDriver best = {"baseline", 0.0f};
+    for (const auto& c : candidates) {
+        if (c.magnitude > best.magnitude) best = c;
+    }
+    if (best.magnitude < 0.15f) return {"baseline", 0.0f};
+    return best;
+}

@@ -102,6 +102,25 @@ export interface Patient {
   // PatientSnapshot). These are the points a counterfactual fork can branch
   // from (POST /api/clinical/fork's from_timestamp).
   snapshot_timestamps: number[];
+  // Parallel to snapshot_timestamps by index -- which single hidden
+  // physiology term or active drug best explains that snapshot's vitals
+  // (see dominant_physiology_driver in src/clinical/ode_physiology.cpp),
+  // and how strongly (0..1). Powers the CCPC causal attribution band.
+  snapshot_drivers: string[];
+  snapshot_driver_magnitudes: number[];
+  // Parallel to snapshot_timestamps by index -- HR and systolic BP at each
+  // snapshot, for the CCPC phase-portrait view (there's no rolling BP
+  // history array otherwise; only the current instantaneous vitals.bp_sys).
+  snapshot_hr: number[];
+  snapshot_bp_sys: number[];
+  // Parallel to snapshot_timestamps by index -- NEWS2 total score and which
+  // single parameter contributed the most points, for the CCPC
+  // score-contribution ribbon (see dominant_news2_contributor in
+  // clinical_scoring.cpp). A different lens than snapshot_drivers: that one
+  // is the hidden physiology *causing* the vitals, this is which
+  // *observable, scored* parameter is actually moving the escalation number.
+  snapshot_news2_total: number[];
+  snapshot_news2_dominant: string[];
   nurse_notes: string;
 }
 

@@ -89,3 +89,22 @@ struct MEWSResult {
 };
 
 MEWSResult calculate_mews(const Vitals& v);
+
+// Which single NEWS2 parameter is contributing the most points right now,
+// for the CCPC "score-contribution ribbon" chart layer -- same idea as
+// dominant_physiology_driver in ode_physiology.cpp (that one explains the
+// hidden physiology *causing* the vitals; this one explains which
+// *observable* parameter is actually moving the early-warning score, which
+// isn't always the same thing -- e.g. a patient can be physiologically
+// septic before any single NEWS2 parameter has crossed into scoring
+// territory). parameter is one of: "respiration", "spo2", "oxygen",
+// "systolic", "heart_rate", "consciousness", "temperature", or "none" (every
+// sub-score is 0). Ties broken by a fixed priority order (consciousness,
+// spo2, systolic, respiration, heart_rate, temperature, oxygen) reflecting
+// roughly which single deranged parameter clinicians tend to act on first --
+// not itself a scored part of NEWS2.
+struct NEWS2Contribution {
+    std::string parameter;
+    int points = 0;
+};
+NEWS2Contribution dominant_news2_contributor(const NEWS2Result& r);

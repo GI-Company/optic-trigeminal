@@ -79,6 +79,14 @@ set(WASM_SOURCES
   ../src/clinical/clinical_scoring.cpp
   ../src/clinical/training_scenario.cpp
   ../src/clinical/training_analytics.cpp
+  # training_scenario.cpp's ODE-physiology path (ScenarioDefinition::
+  # uses_ode_physiology, added 2026-08-26) calls apply_crisis_physiology/
+  # apply_drug_effects/step_physiology -- without this, the WASM link would
+  # fail with undefined symbols. clinical_sim.cpp is deliberately NOT added
+  # here: ode_physiology.h only needs the plain structs it declares
+  # (InternalPhysiology/Vitals/DrugType/ActiveDrug), not
+  # ClinicalSimulator's own methods.
+  ../src/clinical/ode_physiology.cpp
   
   # WASM bindings layer (our addition)
   src/bindings.cpp

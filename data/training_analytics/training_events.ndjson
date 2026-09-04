@@ -2923,3 +2923,55 @@
     "immutable": true
   }
 }
+{
+  "event_id": "EVT-1787719955-0",
+  "session_id": "HYPOTENSION_001_1787719955",
+  "scenario_id": "HYPOTENSION_001",
+  "timestamp": 1787719955,
+  "event_type": "SESSION_START",
+  "event_data": "{\"nurse_id\":\"RN_001\",\"age\":66,\"sex\":\"M\",\"diagnosis\":\"Post-op abdominal\",\"hr\":86,\"rr\":19,\"spo2\":97,\"bp_sys\":113,\"bp_dia\":72,\"temp\":36.1537}",
+  "elapsed_seconds": 0,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787720039-1",
+  "session_id": "HYPOTENSION_001_1787719955",
+  "scenario_id": "",
+  "timestamp": 1787720039,
+  "event_type": "FAILURE_TRIGGERED",
+  "event_data": "failure=no_intervention_20min",
+  "elapsed_seconds": 1260,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787720072-2",
+  "session_id": "HYPOTENSION_001_1787719955",
+  "scenario_id": "",
+  "timestamp": 1787720072,
+  "event_type": "NURSE_ACTION",
+  "event_data": "action=apply_iv_fluids nurse_id=RN_001 timely=true grade=correct delta=0.100000",
+  "elapsed_seconds": 1740,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}
+{
+  "event_id": "EVT-1787720125-3",
+  "session_id": "HYPOTENSION_001_1787719955",
+  "scenario_id": "HYPOTENSION_001",
+  "timestamp": 1787720125,
+  "event_type": "SESSION_COMPLETE",
+  "event_data": "outcome=COMPLETED nurse_id=RN_001 duration=2520 score=10.000000",
+  "elapsed_seconds": 2520,
+  "provenance": {
+    "mode": "TRAINING",
+    "immutable": true
+  }
+}

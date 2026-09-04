@@ -34,6 +34,9 @@ export const DRIVER_META: Record<string, { label: string; color: string }> = {
   vasopressor: { label: 'Vasopressor', color: '#db2777' },
   fluid_resuscitation: { label: 'Fluid resuscitation', color: '#0d9488' },
   antipyretic: { label: 'Antipyretic', color: '#4f46e5' },
+  epinephrine: { label: 'Epinephrine', color: '#e11d48' },
+  insulin: { label: 'Insulin', color: '#0ea5e9' },
+  metabolic_acidosis: { label: 'Metabolic acidosis', color: '#b45309' },
   baseline: { label: 'Near baseline', color: '#475569' }
 };
 

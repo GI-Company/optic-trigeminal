@@ -2432,6 +2432,16 @@ HTTPServer::Response HTTPServer::handle_training_tick(const Request& req) {
     body += "    \"spo2\": " + std::to_string(vitals.spo2) + ",\n";
     body += "    \"bp_sys\": " + std::to_string(vitals.bp_sys) + "\n";
     body += "  },\n";
+
+    // Same causal-attribution signal the ambient dashboard's CCPC
+    // attribution band already renders (dominant_physiology_driver) --
+    // "baseline"/0 for the 3 scenarios still on the legacy curve engine
+    // (get_dominant_driver's own sentinel), so the frontend can render (or
+    // skip rendering) uniformly without a separate not-applicable case.
+    PhysiologyDriver driver = active_scenario_->get_dominant_driver();
+    body += "  \"dominant_driver\": {\"id\": \"" + json_escape(driver.id) + "\", \"magnitude\": " +
+            std::to_string(driver.magnitude) + "},\n";
+
     body += "  \"failure_conditions_triggered\": [\n";
     
     for (size_t i = 0; i < failures.size(); i++) {
@@ -2501,6 +2511,18 @@ HTTPServer::Response HTTPServer::handle_training_end(const Request& req) {
     std::vector<TrainingEvent> events = analytics_store_ ? analytics_store_->get_session_events(user_session.training_session_id)
                                                           : std::vector<TrainingEvent>();
 
+    // "Artificial patient" knowledge (see LIMITATIONS.md): a single
+    // deliberate "session complete" call, not per-tick or read-triggered --
+    // same discipline that fixed handle_observations' earlier learn-on-read
+    // bug. `session` was captured before finalize_session() above updated
+    // the runtime's own copy, so its .outcome field is stale -- correct it
+    // from the same local `outcome` this handler already computed, rather
+    // than trusting the pre-finalization snapshot.
+    session.outcome = outcome;
+    if (engine && !events.empty()) {
+        engine->learn_from_training_session(session, events);
+    }
+
     std::string report = build_training_report_json(
         events, user_session.training_session_id, user_session.scenario_title,
         outcome, duration_seconds, user_session.score, user_session.expected_action_names);
@@ -2537,10 +2559,32 @@ std::string HTTPServer::build_training_report_json(
         bool is_correct = parse_event_data_field(evt.event_data, "timely") == "true";
         if (action_name.empty()) continue;
 
+        // record_nurse_action logs the real ActionEvaluation.score_delta
+        // alongside the flattened timely bool (see its "delta=" field,
+        // training_analytics.cpp) -- this used to ignore it entirely and
+        // hardcode +0.1/-0.05 from timely alone, so a PARTIALLY_CORRECT
+        // action (real delta 0.02) displayed as +10% in the debrief's
+        // Action Transcript, and PREMATURE (real delta -0.02) displayed as
+        // -5%, even though the session's own cumulative score already
+        // summed the correct deltas. Some already-persisted events predate
+        // the delta= field (e.g. hand-authored analytics fixtures with only
+        // "action=... nurse_id=... timely=true"), so this falls back to the
+        // old flattened value for those rather than throwing on an empty
+        // std::stof argument.
+        std::string delta_str = parse_event_data_field(evt.event_data, "delta");
+        float score_delta = is_correct ? 0.1f : -0.05f;
+        if (!delta_str.empty()) {
+            try {
+                score_delta = std::stof(delta_str);
+            } catch (const std::exception&) {
+                // Malformed delta= value -- keep the flattened fallback above.
+            }
+        }
+
         if (has_transcript) transcript << ",";
         transcript << "{\"time\":\"" << evt.elapsed_seconds << "s\",\"action\":\""
                    << json_escape(action_label(action_name)) << "\",\"score\":"
-                   << (is_correct ? 0.1 : -0.05) << "}";
+                   << score_delta << "}";
         has_transcript = true;
 
         if (action_name == "notify_provider") escalated = true;

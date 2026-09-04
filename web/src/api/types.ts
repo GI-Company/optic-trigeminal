@@ -289,6 +289,14 @@ export interface TrainingSession {
   actions_taken: number;
   score: number;
   timestamp: Date;
+  // The same causal-attribution signal the ambient dashboard's CCPC
+  // attribution band renders (dominant_physiology_driver,
+  // src/clinical/ode_physiology.cpp), surfaced per training tick --
+  // {"baseline", 0} for the scenarios still on the legacy curve engine
+  // (ScenarioRuntime::get_dominant_driver's own sentinel), not a separate
+  // not-applicable case. Optional because a session just started (before
+  // the first tick response) hasn't received one yet.
+  dominant_driver?: { id: string; magnitude: number };
 }
 
 export interface TrainingStatus {

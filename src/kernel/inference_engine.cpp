@@ -1,5 +1,6 @@
 #include "inference_engine.h"
 #include "proto_voice.h"
+#include "json_lite.h"
 #include <iostream>
 #include <ctime>
 #include <sstream>
@@ -384,11 +385,103 @@ void NativeInferenceEngine::learn_from_clinical_observation(const ClinicalObserv
     // 4. Update knowledge graph importance
     optic_trigeminal->reinforce_path(obs_emb, obs_emb, 0.05f);
     
-    std::cout << "[ACmK Training] Learned from clinical observation: " << obs.observation_type 
+    std::cout << "[ACmK Training] Learned from clinical observation: " << obs.observation_type
               << " for patient " << obs.patient_id << " (Confidence: " << obs.confidence << ")" << std::endl;
 }
 
+namespace {
+// event_data is a flat "key=value key2=value2" string for NURSE_ACTION/
+// SESSION_COMPLETE (see TrainingAnalyticsStore::record_nurse_action/
+// record_session_complete) -- same small parser training_analytics.cpp's
+// own anonymous-namespace copy uses (not shared across files, matching
+// this codebase's existing pattern for small file-local string helpers).
+std::string parse_flat_event_field(const std::string& event_data, const std::string& key) {
+    std::string needle = key + "=";
+    size_t pos = event_data.find(needle);
+    if (pos == std::string::npos) return "";
+    size_t start = pos + needle.size();
+    size_t end = event_data.find(' ', start);
+    return event_data.substr(start, end == std::string::npos ? std::string::npos : end - start);
+}
+}
 
+void NativeInferenceEngine::learn_from_training_session(const TrainingSession& session,
+                                                          const std::vector<TrainingEvent>& events) {
+    // Everything below is read from real, already-logged event fields --
+    // never a fabricated vital, action, or outcome. SESSION_START's
+    // event_data is JSON (record_session_start); NURSE_ACTION/
+    // SESSION_COMPLETE are flat key=value (record_nurse_action/
+    // record_session_complete) -- see training_analytics.cpp.
+    int age = 0;
+    std::string sex, diagnosis;
+    std::vector<std::string> action_lines;
+    float final_score = 0.0f;
+
+    for (const auto& evt : events) {
+        if (evt.event_type == "SESSION_START") {
+            try {
+                json patient = json::parse(evt.event_data);
+                if (patient.contains("age")) age = static_cast<int>(patient.at("age").as_double(0));
+                if (patient.contains("sex")) sex = patient.at("sex").as_string("");
+                if (patient.contains("diagnosis")) diagnosis = patient.at("diagnosis").as_string("");
+            } catch (const std::exception&) {
+                // Malformed/missing SESSION_START shouldn't block learning
+                // from the rest of a real session -- just proceed without
+                // the patient-demographics line below.
+            }
+        } else if (evt.event_type == "NURSE_ACTION") {
+            std::string action = parse_flat_event_field(evt.event_data, "action");
+            std::string grade = parse_flat_event_field(evt.event_data, "grade");
+            if (!action.empty()) {
+                action_lines.push_back("at " + std::to_string(evt.elapsed_seconds) + "s: " +
+                                        action + (grade.empty() ? "" : " (" + grade + ")"));
+            }
+        } else if (evt.event_type == "SESSION_COMPLETE") {
+            std::string score_str = parse_flat_event_field(evt.event_data, "score");
+            if (!score_str.empty()) {
+                try { final_score = std::stof(score_str); } catch (const std::exception&) { final_score = 0.0f; }
+            }
+        }
+    }
+
+    std::ostringstream input;
+    input << "Training scenario " << session.scenario_id << ": ";
+    if (age > 0) input << age << "yo ";
+    if (!sex.empty()) input << sex << " ";
+    input << "patient";
+    if (!diagnosis.empty()) input << ", " << diagnosis;
+    input << ".";
+
+    std::ostringstream output;
+    output << "Outcome: " << session.outcome << " (score " << static_cast<int>(final_score) << "). ";
+    if (action_lines.empty()) {
+        output << "No actions recorded.";
+    } else {
+        output << "Actions taken: ";
+        for (size_t i = 0; i < action_lines.size(); ++i) {
+            output << action_lines[i];
+            if (i + 1 < action_lines.size()) output << "; ";
+        }
+        output << ".";
+    }
+
+    TrainingExample example;
+    example.id = "training_session_" + session.session_id;
+    example.input = input.str();
+    example.output = output.str();
+    // Distinct domain (not "medical_clinical") so this is identifiable as
+    // simulation-derived -- see LIMITATIONS.md for why that distinction
+    // matters (this describes what happened in a training exercise, not a
+    // general clinical fact).
+    example.domain = "training_scenario";
+    example.is_good = true;
+    example.confidence = 1.0f; // a real record of what happened, not a modeled probability
+
+    learn_from_example(example);
+
+    std::cout << "[ACmK Training] Learned from training session: " << session.scenario_id
+              << " (" << action_lines.size() << " actions, outcome=" << session.outcome << ")" << std::endl;
+}
 
 void NativeInferenceEngine::add_training_data(const std::vector<TrainingExample>& examples) {
     for (const auto& example : examples) {

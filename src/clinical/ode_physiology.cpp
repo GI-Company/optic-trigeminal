@@ -102,6 +102,7 @@ void step_physiology(InternalPhysiology& phys, Vitals& v, float dt_seconds) {
     relax(phys.infection_burden, 0.0f, 0.005f, dt_seconds);
     relax(phys.shunt_fraction, 0.0f, 0.02f, dt_seconds);
     relax(phys.antipyretic_effect, 0.0f, 0.01f, dt_seconds);
+    relax(phys.metabolic_acidosis, 0.0f, 0.02f, dt_seconds);
 
     // RK4, sub-stepped for stability at real tick sizes (this simulator's
     // ticks are driven by HTTP polling, often several seconds apart).
@@ -135,7 +136,8 @@ void step_physiology(InternalPhysiology& phys, Vitals& v, float dt_seconds) {
     v.spo2 = safe_round_to_int(std::clamp(
         98.0f * phys.oxygenation_efficiency - phys.shunt_fraction * 15.0f + noise(1.0f), 50.0f, 100.0f), 98);
     v.rr = safe_round_to_int(std::clamp(
-        16.0f + (1.0f - phys.oxygenation_efficiency) * 26.0f + phys.infection_burden * 6.0f + noise(1.0f),
+        16.0f + (1.0f - phys.oxygenation_efficiency) * 26.0f + phys.infection_burden * 6.0f
+              + phys.metabolic_acidosis * 15.0f + noise(1.0f),
         6.0f, 45.0f), 16);
 
     // Temperature changes are physiologically slow -- eases toward a
@@ -169,6 +171,42 @@ void apply_crisis_physiology(InternalPhysiology& phys, const std::string& crisis
     } else if (crisis_type == "Respiratory Failure") {
         phys.oxygenation_efficiency = std::max(0.35f, phys.oxygenation_efficiency - 0.01f * dt_seconds);
         phys.shunt_fraction = std::min(0.5f, phys.shunt_fraction + 0.008f * dt_seconds);
+    } else if (crisis_type == "Anaphylaxis") {
+        // Histamine-mediated: both mechanisms at once. The oxygenation/
+        // shunt pair reuses Respiratory Failure's own already-tuned rates
+        // directly (this scenario's own authored SpO2 delta, -12 over its
+        // ~15min run, doesn't support a faster rate than that -- verified
+        // via timing probe, an earlier faster guess bottomed out SpO2 far
+        // more than the authored intent). Vasodilation is faster than
+        // Sepsis's (0.01f), matching this scenario's own steeper authored
+        // BP_sys deltas (-35 by t=10min vs. Sepsis's more gradual decline).
+        // Distinct from Sepsis's vasodilation: no infection_burden or
+        // circulating_volume involvement (this isn't an infectious
+        // process).
+        phys.systemic_vascular_resistance = std::max(0.25f, phys.systemic_vascular_resistance - 0.02f * dt_seconds);
+        phys.oxygenation_efficiency = std::max(0.35f, phys.oxygenation_efficiency - 0.01f * dt_seconds);
+        phys.shunt_fraction = std::min(0.5f, phys.shunt_fraction + 0.008f * dt_seconds);
+    } else if (crisis_type == "Diabetic Ketoacidosis") {
+        // Two independent mechanisms, deliberately not folded into
+        // existing ones: osmotic diuresis depletes volume (same
+        // circulating_volume term Hypovolemic Shock uses, but at roughly
+        // half its rate -- this scenario's own authored BP_sys delta,
+        // -18 by t=15min, is much gentler than Hypotension's own scripted
+        // decline), and metabolic acidosis drives compensatory tachypnea
+        // (Kussmaul breathing) via its own new state variable rather than
+        // oxygenation_efficiency, since SpO2 stays normal in pure DKA --
+        // this isn't a hypoxia-driven process the way Respiratory Failure
+        // or Sepsis are.
+        phys.circulating_volume = std::max(0.5f, phys.circulating_volume - 0.006f * dt_seconds);
+        // 0.03f, not a smaller rate matched to the seeded baseline value --
+        // metabolic_acidosis's own standing relax (0.02f/s toward 0) means
+        // any accumulation rate at or below that pulls the seeded baseline
+        // (already >0 -- this scenario starts already acidotic) DOWN
+        // toward a low equilibrium instead of up toward the cap, found via
+        // a timing probe that showed RR declining instead of rising
+        // untreated. 0.03f keeps a clear net upward pull even against the
+        // relax.
+        phys.metabolic_acidosis = std::min(1.0f, phys.metabolic_acidosis + 0.03f * dt_seconds);
     }
 }
 
@@ -204,6 +242,32 @@ void apply_drug_effects(InternalPhysiology& phys, std::vector<ActiveDrug>& activ
             case DrugType::Antipyretic:
                 phys.antipyretic_effect = std::min(1.0f, phys.antipyretic_effect + 0.08f * drug.dose * dt_seconds);
                 break;
+            case DrugType::Epinephrine:
+                // Somewhat faster than Norepinephrine/Oxygen alone (real
+                // epinephrine's onset is near-immediate IM) -- ceilings
+                // stay in the same range as those two rather than a higher
+                // one, for the same open-loop-dosing reason Norepinephrine's
+                // own ceiling comment gives. The SVR rate was tuned down
+                // from an initial 0.05f during timing-probe verification --
+                // combined with this scenario's own short 180s duration,
+                // that rate reversed the crisis within the first 1-2 ticks
+                // and then overshot into sustained hypertension well after
+                // the dose had already worn off (arterial_pressure's own
+                // relax lag catching up to an SVR peak banked early).
+                phys.systemic_vascular_resistance = std::min(1.6f, phys.systemic_vascular_resistance + 0.03f * drug.dose * dt_seconds);
+                phys.oxygenation_efficiency = std::min(1.0f, phys.oxygenation_efficiency + 0.04f * drug.dose * dt_seconds);
+                phys.shunt_fraction = std::max(0.0f, phys.shunt_fraction - 0.03f * drug.dose * dt_seconds);
+                break;
+            case DrugType::Insulin:
+                // Stronger than the crisis's own 0.03f/s accumulation --
+                // unlike Hypotension's Crystalloid (deliberately weaker
+                // than its crisis, since fluids alone are real-world
+                // insufficient for ongoing hemorrhage/shock), insulin is
+                // the definitive fix for DKA's acidosis, not a stopgap --
+                // matches this scenario's own REC-003 framing it as the
+                // resolving step, not a temporizing one.
+                phys.metabolic_acidosis = std::max(0.0f, phys.metabolic_acidosis - 0.04f * drug.dose * dt_seconds);
+                break;
         }
         drug.remaining_seconds -= dt_seconds;
     }
@@ -233,6 +297,7 @@ void apply_hard_limits(InternalPhysiology& phys, Vitals& v) {
     safe(phys.infection_burden, 0.0f, 0.0f, 1.0f);
     safe(phys.shunt_fraction, 0.0f, 0.0f, 0.6f);
     safe(phys.antipyretic_effect, 0.0f, 0.0f, 1.0f);
+    safe(phys.metabolic_acidosis, 0.0f, 0.0f, 1.0f);
 
     if (std::isnan(v.temp) || std::isinf(v.temp)) v.temp = 37.0f;
     if (std::isnan(v.lactate) || std::isinf(v.lactate)) v.lactate = 1.0f;
@@ -260,6 +325,7 @@ PhysiologyDriver dominant_physiology_driver(const InternalPhysiology& phys,
         {"hypoxia", std::clamp(std::max(1.0f - phys.oxygenation_efficiency, phys.shunt_fraction) / 0.6f, 0.0f, 1.0f)},
         {"low_contractility", std::clamp((1.0f - phys.contractility) / 0.4f, 0.0f, 1.0f)},
         {"antipyretic", std::clamp(phys.antipyretic_effect, 0.0f, 1.0f)},
+        {"metabolic_acidosis", std::clamp(phys.metabolic_acidosis, 0.0f, 1.0f)},
     };
 
     // Active drugs are their own candidates rather than folded into the
@@ -273,6 +339,12 @@ PhysiologyDriver dominant_physiology_driver(const InternalPhysiology& phys,
                 break;
             case DrugType::Crystalloid:
                 candidates.push_back({"fluid_resuscitation", std::clamp(drug.dose / 1.5f, 0.3f, 1.0f)});
+                break;
+            case DrugType::Epinephrine:
+                candidates.push_back({"epinephrine", std::clamp(drug.dose / 1.6f, 0.3f, 1.0f)});
+                break;
+            case DrugType::Insulin:
+                candidates.push_back({"insulin", std::clamp(drug.dose / 1.5f, 0.3f, 1.0f)});
                 break;
             default:
                 break;

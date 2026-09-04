@@ -64,6 +64,13 @@ struct InternalPhysiology {
     float oxygenation_efficiency = 1.0f;
     float infection_burden = 0.0f;
     float shunt_fraction = 0.0f;
+    // Kussmaul breathing: DKA's compensatory tachypnea for metabolic
+    // acidosis is a genuinely different RR-driving mechanism than
+    // oxygenation_efficiency/infection_burden below -- SpO2 stays normal in
+    // pure DKA (it isn't a hypoxia-driven process), so folding it into
+    // oxygenation_efficiency would have wrongly dropped SpO2 too. See its
+    // own term in step_physiology's rr formula.
+    float metabolic_acidosis = 0.0f;
 
     // Transient antipyretic effect (0-1): reduces the fever *target*
     // step_physiology eases temperature toward, without touching
@@ -79,7 +86,17 @@ enum class DrugType {
     Oxygen,                 // supplemental O2 -- oxygenation up
     Norepinephrine,          // vasopressor -- SVR/contractility up
     BroadSpectrumAntibiotic, // infection_burden down, over time
-    Antipyretic              // fever-reduction, temp target down
+    Antipyretic,              // fever-reduction, temp target down
+    Epinephrine,              // alpha+beta agonist -- SVR up (vasoconstriction) AND
+                               // oxygenation up / shunt down (bronchodilation) at once,
+                               // faster-acting and shorter-duration than Norepinephrine/
+                               // Oxygen alone -- see apply_drug_effects in
+                               // ode_physiology.cpp
+    Insulin                   // stops ketogenesis -- metabolic_acidosis down, over time.
+                               // Doesn't touch circulating_volume; DKA's own volume
+                               // depletion is addressed by Crystalloid/iv_fluids
+                               // separately, matching real practice (fluids first,
+                               // insulin second).
 };
 
 // A timed, decaying intervention effect -- administered via

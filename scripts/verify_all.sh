@@ -36,12 +36,16 @@ run_fuzz_test() { ./build/physiology_fuzz_test; }
 run_scoring_golden_tests() { ./build/clinical_scoring_test; }
 run_bm25_golden_tests() { ./build/bm25_index_test; }
 run_acmk_planes_golden_tests() { ./build/acmk_planes_test; }
+run_scenario_ode_golden_tests() { ./build/scenario_ode_physiology_test; }
+run_stroke_alert_complication_golden_tests() { ./build/stroke_alert_complication_test; }
+run_training_data_pipeline_golden_tests() { ./build/learn_from_training_session_test; }
 run_integration_test() { ./build/acmk_integration_test; }
 
 # ASan+UBSan build of the fastest, most adversarial-input-heavy test
-# targets (not the ACMK planes tests -- those need crypto_utils.cpp's
-# argon2 link dependency, and are a behavioral/regression suite rather
-# than the kind of fuzzed-random-input test sanitizers earn their keep on).
+# targets (not the ACMK planes or training-data-pipeline tests -- those need
+# crypto_utils.cpp's argon2 link dependency (the latter needs essentially
+# the whole kernel), and are behavioral/regression suites rather than the
+# kind of fuzzed-random-input test sanitizers earn their keep on).
 # This isn't redundant with the plain builds above: a fuzz test
 # passing its own assertions only proves the *final* clamped output looked
 # right, not that nothing undefined happened on the way there. This caught
@@ -57,7 +61,9 @@ run_sanitizer_build() {
     $cxx tests/physiology_fuzz_test.cpp src/clinical/ode_physiology.cpp -o "$dir/physiology_fuzz_test_asan" || return 1
     $cxx tests/clinical_scoring_test.cpp src/clinical/clinical_scoring.cpp -o "$dir/clinical_scoring_test_asan" || return 1
     $cxx tests/bm25_index_test.cpp src/kernel/bm25_index.cpp -o "$dir/bm25_index_test_asan" || return 1
-    "$dir/physiology_fuzz_test_asan" && "$dir/clinical_scoring_test_asan" && "$dir/bm25_index_test_asan"
+    $cxx tests/scenario_ode_physiology_test.cpp src/clinical/training_scenario.cpp src/clinical/ode_physiology.cpp -o "$dir/scenario_ode_test_asan" || return 1
+    $cxx tests/stroke_alert_complication_test.cpp src/clinical/training_scenario.cpp src/clinical/ode_physiology.cpp -o "$dir/stroke_alert_test_asan" || return 1
+    "$dir/physiology_fuzz_test_asan" && "$dir/clinical_scoring_test_asan" && "$dir/bm25_index_test_asan" && "$dir/scenario_ode_test_asan" && "$dir/stroke_alert_test_asan"
     local status=$?
     rm -rf "$dir"
     return $status
@@ -112,7 +118,10 @@ run_step "Physiology fuzz test (20k iterations)" run_fuzz_test
 run_step "Clinical scoring golden tests" run_scoring_golden_tests
 run_step "BM25 index golden tests" run_bm25_golden_tests
 run_step "ACMK planes golden tests" run_acmk_planes_golden_tests
-run_step "ASan+UBSan build (physiology + scoring + BM25 tests)" run_sanitizer_build
+run_step "Scenario ODE physiology golden tests" run_scenario_ode_golden_tests
+run_step "Stroke Alert complication golden tests" run_stroke_alert_complication_golden_tests
+run_step "ACmK training-data pipeline golden tests" run_training_data_pipeline_golden_tests
+run_step "ASan+UBSan build (physiology + scoring + BM25 + scenario ODE + Stroke Alert tests)" run_sanitizer_build
 run_step "ACmK integration test suite" run_integration_test
 run_step "WASM build (wasm/build.sh)" run_wasm_build
 run_step "Sync fresh WASM into web/public + rebuild server" sync_wasm_to_web

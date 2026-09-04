@@ -1,5 +1,6 @@
 import { Component } from './component';
 import type { TrainingSession } from '@api/types';
+import { DRIVER_META } from '@utils/ccpc-visuals';
 
 export interface TrainingModeConfig {
   session: TrainingSession;
@@ -66,6 +67,7 @@ export class TrainingMode extends Component {
               ${this.renderVitalCard('tm-vital-rr', 'Resp Rate', session.patient.vitals.rr, 'rpm', session.patient.vitals.rr > 22 ? 'text-amber-500' : 'text-slate-200')}
               ${this.renderVitalCard('tm-vital-bp', 'Blood Pressure', `${session.patient.vitals.bp_sys}/${session.patient.vitals.bp_dia}`, 'mmHg', 'text-slate-300')}
             </div>
+            ${this.renderDriverBadge(session)}
           </div>
 
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -139,6 +141,29 @@ export class TrainingMode extends Component {
     `;
   }
 
+  // The same causal-attribution signal the ambient dashboard's CCPC
+  // attribution band renders (dominant_physiology_driver,
+  // src/clinical/ode_physiology.cpp) -- surfaced here as a single live
+  // badge rather than a full historical band, since Training Mode doesn't
+  // keep a per-tick snapshot history the way the ambient simulator does.
+  // Shows "Near baseline" (DRIVER_META's own sentinel) for the 3 scenarios
+  // still on the legacy curve engine, same as the ambient dashboard does
+  // for a patient with nothing meaningfully deviated -- an honest "not
+  // available yet" signal rather than hiding the badge inconsistently.
+  private renderDriverBadge(session: TrainingSession): string {
+    const driver = session.dominant_driver ?? { id: 'baseline', magnitude: 0 };
+    const meta = DRIVER_META[driver.id] || DRIVER_META.baseline;
+    return `
+      <div class="mt-4 flex items-center gap-2 text-xs">
+        <span class="text-slate-500 uppercase tracking-wider text-[10px] font-bold">Dominant driver</span>
+        <span id="tm-driver-badge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border" style="border-color: ${meta.color}66; background: ${meta.color}1a; color: ${meta.color}">
+          <span class="w-1.5 h-1.5 rounded-full" style="background: ${meta.color}"></span>
+          ${meta.label}
+        </span>
+      </div>
+    `;
+  }
+
   // Updates just the numbers that change on a tick/action, instead of the
   // full mount()/innerHTML replace every 4s (tick loop) or after every
   // click did before. A full innerHTML replacement destroys and recreates
@@ -160,6 +185,11 @@ export class TrainingMode extends Component {
     setText('tm-vital-spo2', String(session.patient.vitals.spo2));
     setText('tm-vital-rr', String(session.patient.vitals.rr));
     setText('tm-vital-bp', `${session.patient.vitals.bp_sys}/${session.patient.vitals.bp_dia}`);
+
+    // outerHTML, not setText -- the badge's color/border/background are
+    // inline styles keyed off the driver id, not just its text content.
+    const badge = this.element!.querySelector('#tm-driver-badge')?.parentElement;
+    if (badge) badge.outerHTML = this.renderDriverBadge(session).trim();
   }
 
   // Rendered from session.scenario.available_actions -- the exact action ids

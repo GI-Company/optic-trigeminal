@@ -22,6 +22,8 @@
 #include "response_pipeline.h" // Include ResponsePipeline
 #include "entity_extractor.h" // Include EntityExtractor
 #include "clinical_analyzer.h" // Include ClinicalObservation
+#include "training_scenario.h" // Include TrainingSession
+#include "training_analytics.h" // Include TrainingEvent
 #ifndef EMSCRIPTEN_WASM_BUILD
 #include "groq_client.h"
 #endif
@@ -109,6 +111,15 @@ public:
     void learn_from_feedback(const std::string& prompt, const std::string& response, bool was_good);
     void learn_from_example(const TrainingExample& example);
     void learn_from_clinical_observation(const ClinicalObservation& obs);
+    // "Artificial patient" knowledge: a completed training-scenario session
+    // (real synthetic patient + real graded nurse actions + real outcome,
+    // never fabricated) becomes one TrainingExample, same learn_from_example
+    // path real clinical charting already uses. Call once, from
+    // handle_training_end after the session is finalized -- a single
+    // deliberate "session complete" event, matching the discipline that
+    // fixed handle_observations' earlier learn-on-read bug (see
+    // LIMITATIONS.md), not a per-tick or read-triggered call.
+    void learn_from_training_session(const TrainingSession& session, const std::vector<TrainingEvent>& events);
 
     
     void add_training_data(const std::vector<TrainingExample>& examples);

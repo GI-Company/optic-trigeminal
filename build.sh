@@ -132,6 +132,7 @@ clang++ -std=c++17 -O3 -march=native -I../include $ARGON2_INC \
     ../src/kernel/multimodal_handler.cpp \
     ../src/clinical/training_scenario.cpp \
     ../src/clinical/training_analytics.cpp \
+    ../src/clinical/ode_physiology.cpp \
     ../tests/acmk_integration_test.cpp \
     ../src/kernel/groq_client.cpp \
     ../src/server/acmk_api_handler.cpp \
@@ -183,6 +184,7 @@ clang++ -std=c++17 -O3 -march=native -I../include $ARGON2_INC \
     ../src/kernel/multimodal_handler.cpp \
     ../src/clinical/training_scenario.cpp \
     ../src/clinical/training_analytics.cpp \
+    ../src/clinical/ode_physiology.cpp \
     ../src/tools/acmk_admin_cli.cpp \
     ../src/kernel/groq_client.cpp \
     ../src/server/acmk_api_handler.cpp \
@@ -240,3 +242,77 @@ clang++ -std=c++17 -O2 -I../include $ARGON2_INC \
 
 echo "ACMK planes golden tests build complete!"
 echo "Test Binary: ./build/acmk_planes_test"
+
+echo ""
+echo "Building scenario ODE physiology golden tests..."
+clang++ -std=c++17 -O2 -I../include \
+    ../tests/scenario_ode_physiology_test.cpp \
+    ../src/clinical/training_scenario.cpp \
+    ../src/clinical/ode_physiology.cpp \
+    -o scenario_ode_physiology_test
+
+echo "Scenario ODE physiology golden tests build complete!"
+echo "Test Binary: ./build/scenario_ode_physiology_test"
+
+echo ""
+echo "Building Stroke Alert complication golden tests..."
+clang++ -std=c++17 -O2 -I../include \
+    ../tests/stroke_alert_complication_test.cpp \
+    ../src/clinical/training_scenario.cpp \
+    ../src/clinical/ode_physiology.cpp \
+    -o stroke_alert_complication_test
+
+echo "Stroke Alert complication golden tests build complete!"
+echo "Test Binary: ./build/stroke_alert_complication_test"
+
+echo ""
+echo "Building ACmK training-data pipeline golden tests..."
+clang++ -std=c++17 -O2 -I../include $ARGON2_INC \
+    ../src/kernel/neural_components.cpp \
+    ../src/kernel/bm25_index.cpp \
+    ../src/kernel/specialization.cpp \
+    ../src/kernel/inference_engine.cpp \
+    ../src/kernel/data_loader.cpp \
+    ../src/kernel/data_pipeline.cpp \
+    ../src/kernel/training_stages.cpp \
+    ../src/kernel/training_orchestrator.cpp \
+    ../src/kernel/checkpoint_persistence.cpp \
+    ../src/kernel/weight_updater.cpp \
+    ../src/kernel/artifact_persistence.cpp \
+    ../src/kernel/recovery_manager.cpp \
+    ../src/kernel/telemetry_collector.cpp \
+    ../src/kernel/vfs_manager.cpp \
+    ../src/kernel/rag_dag.cpp \
+    ../src/kernel/agent_orchestrator.cpp \
+    ../src/kernel/meta_debugger.cpp \
+    ../src/kernel/cognitive_load_balancer.cpp \
+    ../src/kernel/long_horizon_planner.cpp \
+    ../src/server/debug_server.cpp \
+    ../src/server/auth_manager.cpp \
+    ../src/server/cohort_manager.cpp \
+    ../src/kernel/kernel_service_registry.cpp \
+    ../src/kernel/crypto_utils.cpp \
+    ../src/kernel/simulation_enforcement.cpp \
+    ../src/kernel/temporal_controls.cpp \
+    ../src/kernel/fhir_client.cpp \
+    ../src/clinical/rbac_fhir.cpp \
+    ../src/kernel/policy_engine.cpp \
+    ../src/kernel/decoder_compliance_gate.cpp \
+    ../src/kernel/proto_voice_decoder.cpp \
+    ../src/kernel/proto_voice.cpp \
+    ../src/kernel/response_pipeline.cpp \
+    ../src/kernel/multimodal_handler.cpp \
+    ../src/clinical/clinical_sim.cpp \
+    ../src/clinical/ode_physiology.cpp \
+    ../src/clinical/clinical_analyzer.cpp \
+    ../src/clinical/clinical_scoring.cpp \
+    ../src/clinical/training_scenario.cpp \
+    ../src/clinical/training_analytics.cpp \
+    ../tests/learn_from_training_session_test.cpp \
+    ../src/kernel/groq_client.cpp \
+    $ARGON2_OBJS \
+    -pthread \
+    -o learn_from_training_session_test
+
+echo "ACmK training-data pipeline golden tests build complete!"
+echo "Test Binary: ./build/learn_from_training_session_test"

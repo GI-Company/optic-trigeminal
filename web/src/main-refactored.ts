@@ -467,7 +467,8 @@ function startTrainingTickLoop(): void {
             spo2: tick.vitals?.spo2 ?? session.patient.vitals.spo2,
             bp_sys: tick.vitals?.bp_sys ?? session.patient.vitals.bp_sys
           }
-        }
+        },
+        dominant_driver: tick.dominant_driver ?? session.dominant_driver
       };
       store.updateTrainingSession(updated);
 

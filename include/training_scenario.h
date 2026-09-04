@@ -3,9 +3,12 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 #include <ctime>
 #include <memory>
 #include <cstdint>
+#include "clinical_sim.h"
+#include "ode_physiology.h"
 
 struct ScenarioVitals {
     int hr;
@@ -88,6 +91,20 @@ struct ScenarioDefinition {
     std::vector<AIRecommendation> ai_recommendations;
     std::vector<ActionEffect> expected_actions;
     std::vector<FailureCondition> failure_conditions;
+
+    // When true, ScenarioRuntime drives current_vitals_ from the real ODE
+    // physiology engine (InternalPhysiology/step_physiology/
+    // apply_crisis_physiology/apply_drug_effects -- see ode_physiology.h,
+    // already fuzz-tested and sanitizer-verified for the ambient
+    // ClinicalSimulator) instead of the curve-overlay model below.
+    // Deliberately false for most scenarios: only migrate ones whose
+    // grading depends on a single vital, or is ungated entirely (see
+    // training_scenario.cpp's own comment on why multi-vital scenarios hit
+    // a real per-vital relative-rate mismatch under the existing crisis
+    // model, not just a tuning gap). True for HYPOTENSION_001 and
+    // SEVERE_BLEEDING_001 (both Hypovolemic Shock -- hemorrhage is volume
+    // loss, same underlying physiology).
+    bool uses_ode_physiology = false;
 };
 
 // Widened from a plain bool so a wrong action can be "not ideal but not
@@ -145,11 +162,55 @@ public:
 
     const ScenarioDefinition::SyntheticPatient& get_synthetic_patient() const { return definition_.synthetic_patient; }
 
+    // The same causal-attribution signal the ambient ClinicalSimulator's
+    // CCPC attribution band already surfaces (dominant_physiology_driver,
+    // ode_physiology.h) -- meaningful only for uses_ode_physiology
+    // scenarios, since the legacy curve engine has no InternalPhysiology
+    // state to attribute to. Returns {"baseline", 0.0f} (the same "nothing
+    // meaningfully deviated" sentinel dominant_physiology_driver itself
+    // uses) for scenarios still on the legacy engine, rather than a
+    // separate not-applicable value the frontend would need its own
+    // special case for.
+    PhysiologyDriver get_dominant_driver() const {
+        if (!definition_.uses_ode_physiology) return {"baseline", 0.0f};
+        return dominant_physiology_driver(physiology_, active_drugs_);
+    }
+
 private:
     ScenarioDefinition definition_;
     ScenarioVitals baseline_vitals_;   // timeline deltas + random jitter only, never clamped mid-flight
     ScenarioVitals current_vitals_;    // = clamp(baseline_vitals_ + action overlay + complication overlay), recomputed fresh every tick
     ScenarioVitals last_vitals_;
+
+    // ODE physiology path (definition_.uses_ode_physiology only). ode_vitals_
+    // is the real Vitals struct step_physiology writes into; current_vitals_
+    // is copied from it each tick so get_current_vitals()/
+    // evaluate_action_correctness/evaluate_condition keep reading the same
+    // ScenarioVitals shape regardless of which engine is active.
+    InternalPhysiology physiology_;
+    Vitals ode_vitals_{};
+    std::vector<ActiveDrug> active_drugs_;
+    std::string active_crisis_type_;
+    // One-shot latch decoupled from active_crisis_type_'s current value --
+    // guards update_vitals_via_ode_physiology's onset scan so a scenario
+    // with more than one non-empty timeline event (e.g. SEVERE_BLEEDING_001's
+    // trauma_arrival/increased_bleeding/hemorrhagic_shock beats, all
+    // reinterpreted as the same ongoing crisis) can't have a later event
+    // re-arm the crisis after a nurse's correct action (e.g.
+    // hemorrhage_control) has already cleared active_crisis_type_ via
+    // ode_action_stops_crisis. Without this, active_crisis_type_.empty()
+    // alone looks identical whether the crisis never started or was
+    // deliberately stopped, silently undoing source control a few ticks
+    // later.
+    bool crisis_ever_activated_ = false;
+    // One-shot tracking for apply_complication_effects_via_ode -- a
+    // triggered_failures_ entry's complication_effect should nudge
+    // physiology once, the tick after it arms (matching the legacy
+    // engine's recompute_vitals_with_overlay, which starts a complication's
+    // curve contributing from its own onset_delay_sec, not re-apply it
+    // continuously every tick the way apply_crisis_physiology does for an
+    // ongoing crisis).
+    std::set<std::string> complications_applied_to_ode_;
 
     int elapsed_time_sec_;
     int last_tick_sec_;
@@ -168,6 +229,8 @@ private:
     void recompute_vitals_with_overlay();
     void trigger_ai_recommendations();
     void mutate_vitals_baseline(int minutes_crossed);
+    void update_vitals_via_ode_physiology(int delta_seconds, int minutes_before, int minutes_after);
+    void apply_complication_effects_via_ode();
 
     float evaluate_condition(const std::string& expr);
 };

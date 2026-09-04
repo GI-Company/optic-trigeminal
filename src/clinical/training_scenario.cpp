@@ -67,6 +67,134 @@ inline float full_expiry_sec(float onset_delay_sec, float duration_sec) {
 
 } // namespace physio_curve
 
+namespace {
+
+// Which ode_physiology.h crisis type a uses_ode_physiology scenario's
+// scripted deterioration corresponds to. Kept as its own small lookup
+// (mirroring evaluate_action_correctness's own per-scenario-id branching
+// style below) rather than a new ScenarioDefinition field, since only one
+// scenario uses this today -- revisit if a second one needs it.
+std::string ode_crisis_type_for_scenario(const std::string& scenario_id) {
+    if (scenario_id == "HYPOTENSION_001") return "Hypovolemic Shock";
+    // Hemorrhage is volume loss -- the same crisis type as Hypotension's
+    // shock physiology, not a new model. Unlike Hypotension, this
+    // scenario's baseline already starts mid-crisis (bp_sys=88 at t=0);
+    // see the constructor's t=0 activation check below.
+    if (scenario_id == "SEVERE_BLEEDING_001") return "Hypovolemic Shock";
+    if (scenario_id == "ANAPHYLAXIS_001") return "Anaphylaxis";
+    if (scenario_id == "RESPIRATORY_001") return "Respiratory Failure";
+    if (scenario_id == "DKA_CRISIS_001") return "Diabetic Ketoacidosis";
+    return "";
+}
+
+// Maps an accepted action name to the DrugType + dose/duration
+// apply_drug_effects expects, for uses_ode_physiology scenarios. A
+// scenario-scoped equivalent of http_server.cpp's dashboard_action_to_drug
+// -- deliberately not reused directly (that one is the dashboard's own
+// action vocabulary, a different id space, same lesson as
+// evaluate_action_correctness's existing comment about not reusing
+// ScenarioRuntime's action_label map for the fork UI's vocabulary).
+bool ode_drug_for_action(const std::string& scenario_id, const std::string& action,
+                          DrugType& type, float& dose, float& duration_sec) {
+    if (scenario_id == "HYPOTENSION_001") {
+        if (action == "apply_iv_fluids") {
+            type = DrugType::Crystalloid; dose = 1.0f; duration_sec = 1800.0f; return true;
+        }
+        if (action == "start_vasopressor") {
+            type = DrugType::Norepinephrine; dose = 1.0f; duration_sec = 3600.0f; return true;
+        }
+    }
+    if (scenario_id == "SEVERE_BLEEDING_001") {
+        // hemorrhage_control has no drug mapping here -- it stops the
+        // crisis's ongoing depletion instead (see ode_action_stops_crisis),
+        // it doesn't restore volume already lost. Doses below are scaled
+        // relative to Hypotension's apply_iv_fluids (dose=1.0, deliberately
+        // weaker than the 0.012/s Hypovolemic Shock depletion rate, per
+        // this file's own test_fluids_slow_the_decline finding) since
+        // massive transfusion is real blood product replacement, not a
+        // crystalloid bolus, and needs to visibly outpace depletion even
+        // while the source is still uncontrolled.
+        if (action == "massive_transfusion") {
+            type = DrugType::Crystalloid; dose = 2.0f; duration_sec = 1800.0f; return true;
+        }
+        if (action == "emergency_surgery") {
+            // Weaker dose than massive_transfusion despite being the
+            // stronger overall intervention -- emergency_surgery ALSO
+            // stops the crisis (ode_action_stops_crisis), and the standing
+            // circulating_volume/SVR relaxation that unlocks is already a
+            // large recovery on its own (verified empirically); stacking a
+            // big crystalloid dose on top of that overshot into
+            // hypertensive territory during timing-probe verification.
+            type = DrugType::Crystalloid; dose = 1.0f; duration_sec = 3600.0f; return true;
+        }
+    }
+    if (scenario_id == "ANAPHYLAXIS_001") {
+        if (action == "epinephrine_im") {
+            // Dose/duration match this action's own authored
+            // onset_delay_sec=0/duration_sec=180 in expected_actions --
+            // real epinephrine's IM effect is short-lived, unlike
+            // Norepinephrine's infusion-length duration elsewhere in this
+            // file.
+            type = DrugType::Epinephrine; dose = 1.0f; duration_sec = 180.0f; return true;
+        }
+        if (action == "fluid_bolus") {
+            type = DrugType::Crystalloid; dose = 1.0f; duration_sec = 600.0f; return true;
+        }
+        // airway_management has no drug mapping -- its own authored
+        // vital_effects is {} (empty) even under the legacy engine; it's
+        // an administrative/preparatory action with no physiological
+        // effect of its own.
+    }
+    if (scenario_id == "RESPIRATORY_001") {
+        // Both actions map to the same existing DrugType::Oxygen --
+        // RR isn't an independent physiology variable in this engine, it's
+        // a formula output of oxygenation_efficiency/infection_burden
+        // (see step_physiology), so raising oxygenation naturally lowers
+        // displayed RR too, matching call_respiratory's own authored dual
+        // effect ({SpO2:+6, RR:-4}) without needing a second mechanism.
+        // call_respiratory's stronger dose matches its bigger authored
+        // effect relative to apply_oxygen's ({SpO2:+4} only).
+        if (action == "apply_oxygen") {
+            type = DrugType::Oxygen; dose = 1.0f; duration_sec = 300.0f; return true;
+        }
+        if (action == "call_respiratory") {
+            type = DrugType::Oxygen; dose = 2.0f; duration_sec = 1800.0f; return true;
+        }
+    }
+    if (scenario_id == "DKA_CRISIS_001") {
+        // iv_fluids addresses the crisis's volume-depletion side unchanged
+        // (reuses Crystalloid as-is); insulin_infusion addresses the
+        // metabolic_acidosis side only -- real insulin doesn't restore
+        // volume directly, matching this scenario's own REC-002-then-REC-003
+        // ordering (fluids first, insulin second) and its own
+        // evaluate_action_correctness contraindication for the reverse
+        // order. obtain_labs has no drug mapping -- its own authored
+        // vital_effects is {} even under the legacy engine.
+        if (action == "iv_fluids") {
+            type = DrugType::Crystalloid; dose = 1.0f; duration_sec = 1200.0f; return true;
+        }
+        if (action == "insulin_infusion") {
+            type = DrugType::Insulin; dose = 1.0f; duration_sec = 3600.0f; return true;
+        }
+    }
+    return false;
+}
+
+// Source-control actions (stopping a bleed, not replacing lost volume)
+// halt the active crisis's ongoing depletion rather than mapping to a
+// drug effect -- distinct from ode_drug_for_action above. Clearing
+// active_crisis_type_ lets step_physiology's own standing relaxation
+// keep working (a real, if slow, recovery once the cause is addressed)
+// without apply_crisis_physiology fighting it every sub-step.
+bool ode_action_stops_crisis(const std::string& scenario_id, const std::string& action) {
+    if (scenario_id == "SEVERE_BLEEDING_001") {
+        return action == "hemorrhage_control" || action == "emergency_surgery";
+    }
+    return false;
+}
+
+} // namespace
+
 ScenarioRuntime::ScenarioRuntime(const ScenarioDefinition& def)
     : definition_(def),
       elapsed_time_sec_(0),
@@ -77,6 +205,81 @@ ScenarioRuntime::ScenarioRuntime(const ScenarioDefinition& def)
     baseline_vitals_ = def.synthetic_patient.baseline_vitals;
     current_vitals_ = baseline_vitals_;
     last_vitals_ = current_vitals_;
+
+    if (def.uses_ode_physiology) {
+        ode_vitals_.hr = baseline_vitals_.hr;
+        ode_vitals_.rr = baseline_vitals_.rr;
+        ode_vitals_.spo2 = baseline_vitals_.spo2;
+        ode_vitals_.bp_sys = baseline_vitals_.bp_sys;
+        ode_vitals_.bp_dia = baseline_vitals_.bp_dia;
+        ode_vitals_.temp = baseline_vitals_.temp;
+        // Seed physiology state to match the authored starting point --
+        // arterial_pressure starts at the authored bp_sys directly (not
+        // InternalPhysiology's own healthy default of 120), and
+        // circulating_volume is backed out from the same ratio so
+        // step_physiology's target_pressure already agrees with where
+        // arterial_pressure starts -- no artificial first-tick jump toward
+        // 120 for a patient the scenario intends to already be trending
+        // down. randomize_case's existing baseline_vitals jitter (see
+        // ScenarioLibrary::randomize_case) flows through here unmodified --
+        // no separate ODE-specific randomization needed.
+        physiology_.arterial_pressure = static_cast<float>(baseline_vitals_.bp_sys);
+        // ANAPHYLAXIS_001's own crisis mechanism is vasodilation
+        // (systemic_vascular_resistance), not volume loss -- seeding
+        // circulating_volume down to match bp_sys here (the generic case
+        // below) would make dominant_physiology_driver's "hypovolemia"
+        // candidate spuriously dominant purely from the seed, for a
+        // mechanism this scenario's crisis never actually touches (caught
+        // live: the new per-tick driver badge showed "Low volume" for a
+        // scenario about vasodilation). Seed the variable this scenario's
+        // OWN crisis actually manipulates instead, so the same
+        // target_pressure-matching goal (no artificial first-tick jump
+        // toward a healthy 120) attributes correctly.
+        if (def.scenario_id == "ANAPHYLAXIS_001") {
+            physiology_.systemic_vascular_resistance = std::clamp(baseline_vitals_.bp_sys / 120.0f, 0.25f, 1.0f);
+        } else {
+            physiology_.circulating_volume = std::clamp(baseline_vitals_.bp_sys / 120.0f, 0.5f, 1.0f);
+        }
+        // Same reasoning, for SpO2 -- back out oxygenation_efficiency from
+        // step_physiology's own v.spo2 formula (98*efficiency - shunt*15,
+        // shunt starts at its InternalPhysiology default of 0) so a
+        // scenario whose authored baseline is already hypoxic (e.g.
+        // Anaphylaxis's spo2=88) doesn't jump toward a healthy ~98% on the
+        // first tick before any crisis physiology has had a chance to run.
+        physiology_.oxygenation_efficiency = std::clamp(baseline_vitals_.spo2 / 98.0f, 0.5f, 1.0f);
+        // DKA_CRISIS_001 only -- back out metabolic_acidosis from whatever
+        // RR the oxygenation_efficiency seeding above doesn't already
+        // explain, so the first tick's Kussmaul-breathing-driven RR term
+        // doesn't start at 0 and produce the same kind of first-tick jump
+        // (28 -> ~18) the oxygenation seeding above was added to avoid for
+        // SpO2. Scenario-gated rather than generic: for scenarios without
+        // this mechanism, a baseline RR that's merely a little elevated for
+        // unrelated reasons would otherwise seed a small, spurious nonzero
+        // metabolic_acidosis with no crisis to justify it.
+        if (def.scenario_id == "DKA_CRISIS_001") {
+            float rr_from_oxygenation = (1.0f - physiology_.oxygenation_efficiency) * 26.0f;
+            physiology_.metabolic_acidosis = std::clamp(
+                (static_cast<float>(baseline_vitals_.rr) - 16.0f - rr_from_oxygenation) / 15.0f, 0.0f, 1.0f);
+        }
+
+        // Some scenarios (Severe Bleeding) start already mid-crisis -- the
+        // authored baseline itself is the "already deteriorating" point,
+        // not a healthy starting line. Their first timeline event sits at
+        // t_min<=0, which tick()'s (minutes_before, minutes_after] range
+        // check can never fire (minutes_before starts at 0 too, so t_min=0
+        // never satisfies t_min > minutes_before) -- the same reason that
+        // event never fires under the legacy curve engine either. Rather
+        // than rely on a check that structurally can't trigger, activate
+        // the crisis immediately here for scenarios authored to start this
+        // way; update_vitals_via_ode_physiology's own onset scan still
+        // handles scenarios (like Hypotension) that start healthy and
+        // develop a crisis partway through.
+        if (!def.timeline.empty() && def.timeline.front().t_min <= 0 &&
+            !def.timeline.front().vitals_delta.empty()) {
+            active_crisis_type_ = ode_crisis_type_for_scenario(def.scenario_id);
+            crisis_ever_activated_ = true;
+        }
+    }
 
     session_record_.session_id = def.scenario_id + "_" + std::to_string(std::time(nullptr));
     session_record_.scenario_id = def.scenario_id;
@@ -95,9 +298,13 @@ void ScenarioRuntime::tick(int delta_seconds) {
     int minutes_after = elapsed_time_sec_ / 60;
     last_vitals_ = current_vitals_;
 
-    apply_timeline_events(minutes_before, minutes_after);
-    mutate_vitals_baseline(minutes_after - minutes_before);
-    recompute_vitals_with_overlay();
+    if (definition_.uses_ode_physiology) {
+        update_vitals_via_ode_physiology(delta_seconds, minutes_before, minutes_after);
+    } else {
+        apply_timeline_events(minutes_before, minutes_after);
+        mutate_vitals_baseline(minutes_after - minutes_before);
+        recompute_vitals_with_overlay();
+    }
     trigger_ai_recommendations();
 
     auto failures = check_failure_conditions();
@@ -229,6 +436,124 @@ void ScenarioRuntime::recompute_vitals_with_overlay() {
     }
 }
 
+// Training's tick cadence represents delta_seconds of *simulated* time per
+// call (60s/tick, called every ~4 real seconds -- ~15x compression, see
+// TRAINING_TICK_SIM_SECONDS/TRAINING_TICK_REAL_MS in main-refactored.ts).
+// apply_crisis_physiology/step_physiology's rate constants were tuned for
+// the ambient ClinicalSimulator's much smaller, frequent real-time ticks --
+// calling them once with a full 60s dt doesn't just move faster, it hits a
+// second, sharper problem: step_physiology's standing relaxation-toward-
+// baseline (relax(), rate*dt clamped to [0,1]) fully saturates at dt>=~50s
+// for several parameters, silently erasing the same call's own crisis
+// progression before it's ever visible. Sub-stepping in small kSubDt chunks
+// keeps every relax() call well under saturation; kOdeTimeScale on top of
+// that calibrates the *pace* so a single-vital crisis (verified empirically
+// against HYPOTENSION_001's own authored timeline -- bp_sys crosses this
+// scenario's <90 grading threshold around tick 15-16, matching its
+// severe_hypotension timeline marker at t=15min) reaches its scripted
+// endpoint at a similar tick count instead of within the first tick or two.
+// Multi-vital scenarios (temp+BP for sepsis, SpO2+RR for respiratory) do
+// NOT calibrate cleanly this way -- see ScenarioDefinition::uses_ode_physiology's
+// own comment for why those stay on the legacy engine for now.
+namespace {
+constexpr float kOdeTimeScale = 1.0f / 15.0f;
+constexpr float kOdeSubDtSec = 1.0f;
+} // namespace
+
+void ScenarioRuntime::apply_complication_effects_via_ode() {
+    // Mirrors recompute_vitals_with_overlay's own triggered_failures_ loop
+    // (the legacy engine's complication handling) -- but where that engine
+    // reapplies a physio_curve contribution every tick a complication is
+    // active, this applies a single, one-time nudge to the underlying
+    // physiology state the tick after a complication arms. A repeating
+    // curve doesn't map cleanly onto continuous ODE state the way it does
+    // onto a baseline+overlay split; a one-time step change to the SAME
+    // underlying variables apply_crisis_physiology/apply_drug_effects
+    // already use (never arterial_pressure/v.spo2 directly) is consistent
+    // with how every other physiology change in this engine works, and
+    // persists at those variables' own slow relax() rate rather than
+    // fading within a tick or two the way a direct vitals nudge would.
+    for (const auto& [name, trigger_time] : triggered_failures_) {
+        if (complications_applied_to_ode_.count(name) > 0) continue;
+        complications_applied_to_ode_.insert(name);
+        for (const auto& fc : definition_.failure_conditions) {
+            if (fc.condition_name != name) continue;
+            for (const auto& [vital, delta] : fc.complication_effect.vital_effects) {
+                if (vital == "BP_sys") {
+                    // A direct arterial_pressure nudge, not
+                    // circulating_volume -- an earlier version of this fix
+                    // nudged circulating_volume and was found (via a
+                    // windowed-average probe, not just eyeballing one run)
+                    // to have no measurable effect: Hypovolemic Shock's own
+                    // crisis code floors circulating_volume at 0.35, and
+                    // once a prolonged crisis has already saturated that
+                    // floor (well before a 20-minute complication typically
+                    // fires), apply_crisis_physiology's max(0.35f, ...)
+                    // instantly re-floors any nudge that pushes it lower on
+                    // the very next sub-step. arterial_pressure has no
+                    // equivalent competing floor from apply_crisis_physiology,
+                    // only step_physiology's own slower pull back toward
+                    // target_pressure.
+                    physiology_.arterial_pressure += delta;
+                } else if (vital == "SpO2") {
+                    physiology_.oxygenation_efficiency =
+                        std::clamp(physiology_.oxygenation_efficiency + delta / 98.0f, 0.2f, 1.0f);
+                }
+                // HR/RR/Temp deltas aren't converted directly -- all three
+                // are formula outputs of the state above in this engine
+                // (see step_physiology), not independent state, so a
+                // BP_sys/SpO2 nudge already moves them the right direction
+                // via the same baroreceptor/oxygenation mechanism regular
+                // crisis progression uses. No currently-migrated scenario's
+                // complication_effect touches Temp; that case is simply
+                // unhandled here rather than guessed at.
+            }
+            break;
+        }
+    }
+}
+
+void ScenarioRuntime::update_vitals_via_ode_physiology(int delta_seconds, int minutes_before, int minutes_after) {
+    apply_complication_effects_via_ode();
+
+    // Timeline events still mark *when* the crisis begins (matching the
+    // scenario's own authored narrative beats), but the ODE model produces
+    // its own continuous, causally-consistent progression from that point
+    // on -- later timeline events past the first no longer need separate
+    // hand-scripted deltas, unlike the legacy engine.
+    if (!crisis_ever_activated_) {
+        for (const auto& event : definition_.timeline) {
+            if (event.t_min > minutes_before && event.t_min <= minutes_after && !event.vitals_delta.empty()) {
+                active_crisis_type_ = ode_crisis_type_for_scenario(definition_.scenario_id);
+                crisis_ever_activated_ = true;
+                break;
+            }
+        }
+    }
+
+    float scaled_dt = static_cast<float>(delta_seconds) * kOdeTimeScale;
+    int sub_steps = std::max(1, static_cast<int>(scaled_dt / kOdeSubDtSec));
+    for (int i = 0; i < sub_steps; ++i) {
+        if (!active_crisis_type_.empty()) {
+            apply_crisis_physiology(physiology_, active_crisis_type_, kOdeSubDtSec);
+        }
+        apply_drug_effects(physiology_, active_drugs_, kOdeSubDtSec);
+        step_physiology(physiology_, ode_vitals_, kOdeSubDtSec);
+    }
+
+    current_vitals_.hr = ode_vitals_.hr;
+    current_vitals_.rr = ode_vitals_.rr;
+    current_vitals_.spo2 = ode_vitals_.spo2;
+    current_vitals_.bp_sys = ode_vitals_.bp_sys;
+    current_vitals_.bp_dia = ode_vitals_.bp_dia;
+    current_vitals_.temp = ode_vitals_.temp;
+    current_vitals_.timestamp = std::time(nullptr);
+
+    if (first_shock_onset_sec_ < 0 && current_vitals_.bp_sys < 90) {
+        first_shock_onset_sec_ = elapsed_time_sec_;
+    }
+}
+
 void ScenarioRuntime::trigger_ai_recommendations() {
     for (auto& rec : definition_.ai_recommendations) {
         if (!rec.was_accepted) {
@@ -243,6 +568,32 @@ void ScenarioRuntime::trigger_ai_recommendations() {
 void ScenarioRuntime::accept_action(const std::string& action, const std::string& nurse_id) {
     active_actions_[action] = elapsed_time_sec_;
     action_history_.push_back({action, elapsed_time_sec_});
+
+    if (definition_.uses_ode_physiology) {
+        DrugType type;
+        float dose, duration_sec;
+        if (ode_drug_for_action(definition_.scenario_id, action, type, dose, duration_sec)) {
+            // Refresh an already-active drug in place rather than stacking a
+            // second entry -- same dedup fix as
+            // ClinicalSimulator::administer_drug (see clinical_sim.cpp),
+            // for the same reason: apply_drug_effects has no cap on
+            // active_drugs, so re-accepting the same action without this
+            // would be an unbounded-growth path.
+            bool found = false;
+            for (auto& d : active_drugs_) {
+                if (d.type == type) {
+                    d.dose = dose;
+                    d.remaining_seconds = duration_sec;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) active_drugs_.push_back({type, dose, duration_sec});
+        }
+        if (ode_action_stops_crisis(definition_.scenario_id, action)) {
+            active_crisis_type_.clear();
+        }
+    }
 
     for (auto& rec : definition_.ai_recommendations) {
         if (rec.text.find(action) != std::string::npos) {
@@ -451,7 +802,8 @@ ScenarioDefinition ScenarioLibrary::create_hypotension_scenario() {
     scenario.description = "BP trending downward, AI suggests fluids then vasopressors";
     scenario.context_mode = "TRAINING";
     scenario.context_unit = "6 West";
-    
+    scenario.uses_ode_physiology = true;
+
     scenario.synthetic_patient.patient_id = "TRAIN-PT-00001";
     scenario.synthetic_patient.age = 62;
     scenario.synthetic_patient.sex = "M";
@@ -524,7 +876,8 @@ ScenarioDefinition ScenarioLibrary::create_respiratory_distress_scenario() {
     scenario.description = "Rising RR, falling SpO2 — oxygen escalation protocol";
     scenario.context_mode = "TRAINING";
     scenario.context_unit = "6 West";
-    
+    scenario.uses_ode_physiology = true;
+
     scenario.synthetic_patient.patient_id = "TRAIN-PT-00002";
     scenario.synthetic_patient.age = 58;
     scenario.synthetic_patient.sex = "F";
@@ -1010,10 +1363,13 @@ ScenarioDefinition ScenarioLibrary::create_stroke_alert_scenario() {
             "hemorrhagic_transform",
             "delayed_tpa_dosing",
             "cerebral_hemorrhage",
-            // Low confidence -- HR uptick is a coarse proxy for a
-            // hemorrhagic complication this vitals model has no ICP/
-            // neuro-status field to represent directly.
-            {"", 0, 1800, {{"HR", 8.0f}}, 1.0f}
+            // Rising ICP from a hemorrhagic complication presenting as
+            // early Cushing's triad (bradycardia + rising BP) -- the same
+            // clinically grounded pattern already used for DKA's
+            // cerebral_edema complication (create_dka_crisis_scenario,
+            // same underlying mechanism: rising ICP), not the coarse
+            // HR-only proxy this used before.
+            {"", 0, 1800, {{"HR", -10.0f}, {"BP_sys", 10.0f}}, 1.0f}
         }
     };
     
@@ -1029,7 +1385,8 @@ ScenarioDefinition ScenarioLibrary::create_dka_crisis_scenario() {
     scenario.description = "Diabetic patient with severe metabolic acidosis and altered mental status";
     scenario.context_mode = "TRAINING";
     scenario.context_unit = "ICU";
-    
+    scenario.uses_ode_physiology = true;
+
     scenario.synthetic_patient.patient_id = "TRAIN-PT-00006";
     scenario.synthetic_patient.age = 35;
     scenario.synthetic_patient.sex = "F";
@@ -1126,7 +1483,8 @@ ScenarioDefinition ScenarioLibrary::create_anaphylaxis_scenario() {
     scenario.description = "Acute allergic reaction with airway compromise and hypotension";
     scenario.context_mode = "TRAINING";
     scenario.context_unit = "ED";
-    
+    scenario.uses_ode_physiology = true;
+
     scenario.synthetic_patient.patient_id = "TRAIN-PT-00007";
     scenario.synthetic_patient.age = 42;
     scenario.synthetic_patient.sex = "M";
@@ -1218,7 +1576,8 @@ ScenarioDefinition ScenarioLibrary::create_severe_bleeding_scenario() {
     scenario.description = "Major trauma with active bleeding and rapid hemodynamic deterioration";
     scenario.context_mode = "TRAINING";
     scenario.context_unit = "Trauma Bay";
-    
+    scenario.uses_ode_physiology = true;
+
     scenario.synthetic_patient.patient_id = "TRAIN-PT-00008";
     scenario.synthetic_patient.age = 45;
     scenario.synthetic_patient.sex = "M";
